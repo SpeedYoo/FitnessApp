@@ -13,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.example.fitnessapp.ui.screens.ProfileScreen
 import com.example.fitnessapp.ui.screens.SummaryScreen
 import com.example.fitnessapp.ui.screens.WorkoutScreen
 import com.example.fitnessapp.ui.theme.FitnessAppTheme
@@ -37,10 +38,15 @@ fun FitnessAppApp() {
         when (currentScreen) {
             "summary" -> SummaryScreen(
                 onNavigateToWorkout = { currentScreen = "workout" },
+                onNavigateToProfile = { currentScreen = "profile" },
                 modifier = Modifier.padding(innerPadding)
             )
             "workout" -> WorkoutScreen(
                 onNavigateToSummary = { currentScreen = "summary" },
+                modifier = Modifier.padding(innerPadding)
+            )
+            "profile" -> ProfileScreen(
+                onNavigateBack = { currentScreen = "summary" },
                 modifier = Modifier.padding(innerPadding)
             )
         }

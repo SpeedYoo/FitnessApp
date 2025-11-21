@@ -2,6 +2,7 @@ package com.example.fitnessapp.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -15,6 +16,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun SummaryScreen(
     onNavigateToWorkout: () -> Unit,
+    onNavigateToProfile: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -23,13 +25,36 @@ fun SummaryScreen(
             .background(Color(0xFF000000))
             .padding(16.dp)
     ) {
-        Text(
-            text = "Statystyki",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
-            modifier = Modifier.padding(bottom = 24.dp)
-        )
+        // Nagłówek z ikoną profilu
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Statystyki",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+
+            IconButton(onClick = onNavigateToProfile) {
+                Surface(
+                    modifier = Modifier.size(40.dp),
+                    color = Color(0xFF2C2C2E),
+                    shape = CircleShape
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "👤",
+                            fontSize = 20.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
 
         // Karta aktywności (główna)
         Card(
