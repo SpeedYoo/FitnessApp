@@ -6,19 +6,26 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.fitnessapp.ui.viewmodel.SummaryViewModel
 
 @Composable
 fun SummaryScreen(
+    viewModel: SummaryViewModel,
     onNavigateToWorkout: () -> Unit,
     onNavigateToProfile: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Obserwowanie stanu z ViewModela
+    val uiState by viewModel.uiState.collectAsState()
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -56,7 +63,7 @@ fun SummaryScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Karta aktywności (główna)
+        // Karta aktywności (główna) - DANE Z VIEWMODELA
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -77,8 +84,14 @@ fun SummaryScreen(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier.size(80.dp)
                 ) {
+                    val progress = if (uiState.caloriesGoal > 0) {
+                        uiState.calories.toFloat() / uiState.caloriesGoal.toFloat()
+                    } else {
+                        0f
+                    }
+
                     CircularProgressIndicator(
-                        progress = { 0.95f },
+                        progress = { progress.coerceIn(0f, 1f) },
                         modifier = Modifier.fillMaxSize(),
                         color = Color(0xFFFF3B30),
                         strokeWidth = 8.dp,
@@ -95,7 +108,7 @@ fun SummaryScreen(
                         color = Color.LightGray
                     )
                     Text(
-                        text = "95/100 kcal",
+                        text = "${uiState.calories}/${uiState.caloriesGoal} kcal",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFFF3B30)
@@ -106,7 +119,7 @@ fun SummaryScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Rząd z kartami: Ilość kroków i Dystans
+        // Rząd z kartami: Ilość kroków i Dystans - DANE Z VIEWMODELA
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -114,7 +127,7 @@ fun SummaryScreen(
             StatCard(
                 title = "Ilość kroków",
                 subtitle = "Dzisiaj",
-                value = "10 000",
+                value = "${formatNumber(uiState.steps)} / ${formatNumber(uiState.stepsGoal)}",
                 valueColor = Color(0xFFBF5AF2),
                 modifier = Modifier.weight(1f)
             )
@@ -122,7 +135,7 @@ fun SummaryScreen(
             StatCard(
                 title = "Dystans",
                 subtitle = "Dzisiaj",
-                value = "8,5 Km",
+                value = uiState.distance,
                 valueColor = Color(0xFF5E5CE6),
                 modifier = Modifier.weight(1f)
             )
@@ -130,7 +143,7 @@ fun SummaryScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Rząd z kartami: Treningi i W ruchu
+        // Rząd z kartami: Treningi i W ruchu - DANE Z VIEWMODELA
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -138,7 +151,7 @@ fun SummaryScreen(
             StatCard(
                 title = "Treningi",
                 subtitle = "Ostatni trening",
-                value = "217,2 Km",
+                value = uiState.lastWorkoutDistance,
                 valueColor = Color(0xFFFFCC00),
                 modifier = Modifier.weight(1f)
             )
@@ -146,7 +159,7 @@ fun SummaryScreen(
             StatCard(
                 title = "W ruchu",
                 subtitle = "Dzisiaj",
-                value = "67 minut",
+                value = "${uiState.activeTimeMinutes} minut",
                 valueColor = Color(0xFF32D74B),
                 modifier = Modifier.weight(1f)
             )
@@ -234,4 +247,13 @@ fun StatCard(
             )
         }
     }
+}
+
+// Helper do formatowania liczb (10000 -> "10 000")
+private fun formatNumber(number: Int): String {
+    return number.toString()
+        .reversed()
+        .chunked(3)
+        .joinToString(" ")
+        .reversed()
 }

@@ -17,17 +17,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.fitnessapp.ui.viewmodel.ProfileViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
+    viewModel: ProfileViewModel,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var age by remember { mutableStateOf("") }
-    var weight by remember { mutableStateOf("") }
-    var height by remember { mutableStateOf("") }
-    var selectedGender by remember { mutableStateOf("Mężczyzna") }
+    // Obserwowanie profilu z ViewModela
+    val profile by viewModel.userProfile.collectAsState()
+
+    var age by remember { mutableStateOf(profile.age.toString()) }
+    var weight by remember { mutableStateOf(profile.weight.toString()) }
+    var height by remember { mutableStateOf(profile.height.toString()) }
+    var caloriesGoal by remember { mutableStateOf(profile.dailyCaloriesGoal.toString()) }
+    var stepsGoal by remember { mutableStateOf(profile.dailyStepsGoal.toString()) }
+    var selectedGender by remember { mutableStateOf(profile.gender) }
     var expanded by remember { mutableStateOf(false) }
 
     Column(
@@ -173,11 +180,58 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
+        // Separator
+        Text(
+            text = "Cele dzienne",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        // Cel kalorii
+        ProfileInputField(
+            label = "Cel kalorii",
+            value = caloriesGoal,
+            onValueChange = { caloriesGoal = it },
+            placeholder = "np. 500",
+            suffix = "kcal"
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Cel kroków
+        ProfileInputField(
+            label = "Cel kroków",
+            value = stepsGoal,
+            onValueChange = { stepsGoal = it },
+            placeholder = "np. 6000",
+            suffix = "kroków"
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
         // Przycisk zapisz
         Button(
             onClick = {
-                // TODO: Zapisz dane do SharedPreferences lub Room Database
-                onNavigateBack()
+                // Walidacja i zapisanie danych
+                val ageInt = age.toIntOrNull() ?: 0
+                val weightFloat = weight.toFloatOrNull() ?: 0f
+                val heightInt = height.toIntOrNull() ?: 0
+                val caloriesGoalInt = caloriesGoal.toIntOrNull() ?: 500
+                val stepsGoalInt = stepsGoal.toIntOrNull() ?: 6000
+
+                if (ageInt > 0 && weightFloat > 0 && heightInt > 0) {
+                    viewModel.updateProfile(
+                        gender = selectedGender,
+                        age = ageInt,
+                        weight = weightFloat,
+                        height = heightInt,
+                        caloriesGoal = caloriesGoalInt,
+                        stepsGoal = stepsGoalInt
+                    )
+                    onNavigateBack()
+                }
             },
             modifier = Modifier
                 .fillMaxWidth()
