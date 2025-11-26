@@ -93,17 +93,58 @@ class StepCounterService : Service(), SensorEventListener {
                 // Obliczamy dzisiejsze kroki
                 currentSteps = totalSteps - initialSteps
 
+                // NOWE: Oblicz dystans, kalorie i czas aktywności
+                calculateAndSaveMetrics(currentSteps)
+
                 // Aktualizujemy notyfikację
                 val notification = createNotification(currentSteps)
                 val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 notificationManager.notify(NOTIFICATION_ID, notification)
 
-                // Zapisujemy kroki
-                saveDailySteps(currentSteps)
-
                 // Wysyłamy broadcast z aktualizacją kroków
                 broadcastStepUpdate(currentSteps)
             }
+        }
+    }
+
+    private fun calculateAndSaveMetrics(steps: Int) {
+        val prefs = getSharedPreferences("fitness_prefs", Context.MODE_PRIVATE)
+
+        // Pobierz profil użytkownika
+        val gender = prefs.getString("gender", "Mężczyzna") ?: "Mężczyzna"
+        val height = prefs.getInt("height", 175)
+        val weight = prefs.getFloat("weight", 70f)
+        val age = prefs.getInt("age", 25)
+
+        // 1. Oblicz dystans (na podstawie wzrostu i płci)
+        val strideLength = if (gender == "Mężczyzna") {
+            height * 0.415f / 100 // w metrach
+        } else {
+            height * 0.413f / 100
+        }
+        val distanceMeters = steps * strideLength
+        val distanceKm = distanceMeters / 1000
+
+        // 2. Oblicz czas aktywności (proste założenie: ~80 kroków na minutę)
+        val activeTimeMinutes = (steps / 80).coerceAtLeast(0)
+
+        // 3. Oblicz kalorie (MET method)
+        val walkingMET = when {
+            steps < 3000 -> 2.0f      // Powolne chodzenie
+            steps < 7000 -> 3.5f      // Normalne chodzenie
+            else -> 5.0f               // Szybkie chodzenie
+        }
+        val timeInHours = activeTimeMinutes / 60f
+        val calories = (walkingMET * weight * timeInHours).toInt()
+
+        // Zapisz wszystkie dane
+        prefs.edit().apply {
+            putInt("steps", steps)
+            putFloat("distance", distanceKm)
+            putInt("calories", calories)
+            putInt("active_time", activeTimeMinutes)
+            putLong("last_update", System.currentTimeMillis())
+            apply()
         }
     }
 
@@ -185,9 +226,7 @@ class StepCounterService : Service(), SensorEventListener {
         val prefs = getSharedPreferences("fitness_prefs", Context.MODE_PRIVATE)
         prefs.edit().apply {
             putInt("daily_steps", steps)
-            putInt("steps", steps) // WAŻNE: to pole używa Repository!
             putLong("last_step_date", System.currentTimeMillis())
-            putLong("last_update", System.currentTimeMillis())
             apply()
         }
     }

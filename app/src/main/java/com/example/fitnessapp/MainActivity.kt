@@ -1,7 +1,6 @@
 package com.example.fitnessapp
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -24,13 +23,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.fitnessapp.data.local.PreferencesManager
 import com.example.fitnessapp.data.repository.FitnessRepositoryImpl
 import com.example.fitnessapp.domain.service.StepCounterService
+import com.example.fitnessapp.domain.service.WorkoutTrackingService
 import com.example.fitnessapp.domain.usecase.CalculateActiveTimeUseCase
 import com.example.fitnessapp.domain.usecase.CalculateCaloriesUseCase
 import com.example.fitnessapp.domain.usecase.CalculateDistanceUseCase
+import com.example.fitnessapp.ui.screens.ActiveWorkoutScreen
 import com.example.fitnessapp.ui.screens.ProfileScreen
 import com.example.fitnessapp.ui.screens.SummaryScreen
 import com.example.fitnessapp.ui.screens.WorkoutScreen
@@ -41,12 +43,14 @@ import com.example.fitnessapp.ui.viewmodel.SummaryViewModel
 class MainActivity : ComponentActivity() {
 
     private var serviceStarted = false
+    private var currentRepository: FitnessRepositoryImpl? = null
 
     // BroadcastReceiver do odbierania aktualizacji kroków z serwisu
     private val stepUpdateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val steps = intent?.getIntExtra(StepCounterService.EXTRA_STEPS, 0) ?: 0
-            // Aktualizacja ViewModela nastąpi automatycznie przez Flow
+            // Odśwież dane w repository
+            currentRepository?.refreshData()
         }
     }
 
@@ -68,6 +72,7 @@ class MainActivity : ComponentActivity() {
             // Inicjalizacja zależności
             val prefsManager = PreferencesManager(this)
             val repository = FitnessRepositoryImpl(prefsManager)
+            currentRepository = repository
 
             setContent {
                 FitnessAppTheme {
@@ -77,9 +82,6 @@ class MainActivity : ComponentActivity() {
                     )
                 }
             }
-
-            // NIE uruchamiamy serwisu tutaj!
-            // Czekamy aż użytkownik wyrazi zgodę
 
         } catch (e: Exception) {
             e.printStackTrace()
@@ -103,7 +105,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    @SuppressLint("UnspecifiedRegisterReceiverFlag")
     override fun onResume() {
         super.onResume()
 
@@ -112,6 +113,7 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(stepUpdateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
             registerReceiver(stepUpdateReceiver, filter)
         }
 
@@ -137,6 +139,10 @@ class MainActivity : ComponentActivity() {
         } else {
             startStepCounterService()
         }
+
+        // Uprawnienia GPS (dla treningów)
+        requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        requestPermissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
 
         // Uprawnienie dla notyfikacji (Android 13+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -168,6 +174,8 @@ fun FitnessAppContent(
     prefsManager: PreferencesManager
 ) {
     var currentScreen by rememberSaveable { mutableStateOf("summary") }
+    var activeWorkoutType by remember { mutableStateOf("") }
+    val context = LocalContext.current
 
     // Inicjalizacja ViewModeli
     val summaryViewModel: SummaryViewModel = viewModel(
@@ -193,6 +201,16 @@ fun FitnessAppContent(
             )
             "workout" -> WorkoutScreen(
                 onNavigateToSummary = { currentScreen = "summary" },
+                onStartWorkout = { workoutType ->
+                    activeWorkoutType = workoutType
+                    WorkoutTrackingService.startWorkout(context, workoutType)
+                    currentScreen = "active_workout"
+                },
+                modifier = Modifier.padding(innerPadding)
+            )
+            "active_workout" -> ActiveWorkoutScreen(
+                workoutType = activeWorkoutType,
+                onFinish = { currentScreen = "summary" },
                 modifier = Modifier.padding(innerPadding)
             )
             "profile" -> ProfileScreen(

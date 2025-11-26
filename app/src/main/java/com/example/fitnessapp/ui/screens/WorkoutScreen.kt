@@ -28,15 +28,16 @@ data class Workout(
 @Composable
 fun WorkoutScreen(
     onNavigateToSummary: () -> Unit,
+    onStartWorkout: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val workouts = listOf(
-        Workout(1, "Spacer", "🚶", Color(0xFF2D4A1F)),
-        Workout(4, "Marsz", "🏃", Color(0xFF2D4A1F)),
-        Workout(2, "Bieganie", "🏋️", Color(0xFF2D4A1F)),
-        Workout(3, "Jazda na rowerze", "🚶", Color(0xFF2D4A1F)),
-        Workout(5, "Ćwiczenia siłowe", "🚴", Color(0xFF2D4A1F)),
-        Workout(6, "Joga", "🧘", Color(0xFF2D4A1F))
+        Workout(1, "Outdoor Walk", "🚶", Color(0xFF2D4A1F)),
+        Workout(2, "Traditional Strength Training", "🏋️", Color(0xFF2D4A1F)),
+        Workout(3, "Indoor Walk", "🚶", Color(0xFF2D4A1F)),
+        Workout(4, "Running", "🏃", Color(0xFF2D4A1F)),
+        Workout(5, "Cycling", "🚴", Color(0xFF2D4A1F)),
+        Workout(6, "Yoga", "🧘", Color(0xFF2D4A1F))
     )
 
     Column(
@@ -86,7 +87,10 @@ fun WorkoutScreen(
             modifier = Modifier.weight(1f)
         ) {
             items(workouts) { workout ->
-                WorkoutCard(workout = workout)
+                WorkoutCard(
+                    workout = workout,
+                    onStartWorkout = onStartWorkout
+                )
             }
         }
 
@@ -130,7 +134,10 @@ fun WorkoutScreen(
 }
 
 @Composable
-fun WorkoutCard(workout: Workout) {
+fun WorkoutCard(
+    workout: Workout,
+    onStartWorkout: (String) -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -177,7 +184,7 @@ fun WorkoutCard(workout: Workout) {
 
             // Przycisk play (góra-prawo)
             IconButton(
-                onClick = { },
+                onClick = { onStartWorkout(workout.name) },
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .size(50.dp)

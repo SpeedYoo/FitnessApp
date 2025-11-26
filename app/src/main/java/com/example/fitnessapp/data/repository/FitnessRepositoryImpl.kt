@@ -24,6 +24,11 @@ class FitnessRepositoryImpl(
         }
     }
 
+    override fun refreshData() {
+        _fitnessData.value = prefsManager.getFitnessData()
+        _userProfile.value = prefsManager.getUserProfile()
+    }
+
     override fun updateSteps(steps: Int) {
         val currentData = _fitnessData.value
         val updatedData = currentData.copy(

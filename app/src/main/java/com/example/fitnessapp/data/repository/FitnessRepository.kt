@@ -14,5 +14,6 @@ interface FitnessRepository {
     fun updateActiveTime(minutes: Int)
     fun saveUserProfile(profile: UserProfile)
     fun resetDailyData()
+    fun refreshData() // NOWE!
 }
 
