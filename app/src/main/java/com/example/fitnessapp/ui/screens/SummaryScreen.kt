@@ -5,12 +5,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -21,10 +20,50 @@ fun SummaryScreen(
     viewModel: SummaryViewModel,
     onNavigateToWorkout: () -> Unit,
     onNavigateToProfile: () -> Unit,
+    onNavigateToHistory: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Obserwowanie stanu z ViewModela
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    // Trigger do odświeżania licznika treningów
+    var refreshTrigger by remember { mutableIntStateOf(0) }
+
+    // Odśwież gdy ekran się pokazuje
+    LaunchedEffect(Unit) {
+        refreshTrigger++
+    }
+
+    // Oblicz liczbę treningów w tym tygodniu - z odświeżaniem
+    val weeklyWorkouts by remember(refreshTrigger) {
+        derivedStateOf {
+            val prefs = context.getSharedPreferences("fitness_prefs", android.content.Context.MODE_PRIVATE)
+            val workoutCount = prefs.getInt("workout_count", 0)
+            val calendar = java.util.Calendar.getInstance()
+            val currentWeek = calendar.get(java.util.Calendar.WEEK_OF_YEAR)
+            val currentYear = calendar.get(java.util.Calendar.YEAR)
+
+            var weekCount = 0
+            for (i in 1..workoutCount) {
+                // WAŻNE: Sprawdź czy nie został usunięty
+                val isDeleted = prefs.getBoolean("workout_${i}_deleted", false)
+                if (isDeleted) continue
+
+                val timestamp = prefs.getLong("workout_${i}_timestamp", 0)
+                if (timestamp == 0L) continue
+
+                calendar.timeInMillis = timestamp
+                val workoutWeek = calendar.get(java.util.Calendar.WEEK_OF_YEAR)
+                val workoutYear = calendar.get(java.util.Calendar.YEAR)
+
+                if (workoutWeek == currentWeek && workoutYear == currentYear) {
+                    weekCount++
+                }
+            }
+            weekCount
+        }
+    }
 
     Column(
         modifier = modifier
@@ -38,12 +77,19 @@ fun SummaryScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Statystyki",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
+            Column {
+                Text(
+                    text = "Statystyki",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Text(
+                    text = getCurrentDate(),
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+            }
 
             IconButton(onClick = onNavigateToProfile) {
                 Surface(
@@ -143,18 +189,50 @@ fun SummaryScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Rząd z kartami: Treningi i W ruchu - DANE Z VIEWMODELA
+        // Rząd z kartami: Treningi i W ruchu
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            StatCard(
-                title = "Treningi",
-                subtitle = "Ostatni trening",
-                value = uiState.lastWorkoutDistance,
-                valueColor = Color(0xFFFFCC00),
-                modifier = Modifier.weight(1f)
-            )
+            // Karta treningów - KLIKALNA!
+            Card(
+                onClick = onNavigateToHistory,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(150.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFF2C2C2E)
+                ),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = "Treningi",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "W tym tygodniu",
+                            fontSize = 12.sp,
+                            color = Color.LightGray
+                        )
+                    }
+
+                    Text(
+                        text = "$weeklyWorkouts",
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFFFCC00)
+                    )
+                }
+            }
 
             StatCard(
                 title = "W ruchu",
@@ -256,4 +334,18 @@ private fun formatNumber(number: Int): String {
         .chunked(3)
         .joinToString(" ")
         .reversed()
+}
+
+// Helper do wyświetlania dzisiejszej daty
+private fun getCurrentDate(): String {
+    val calendar = java.util.Calendar.getInstance()
+    val dayNames = arrayOf("Niedziela", "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota")
+    val monthNames = arrayOf("stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca",
+        "lipca", "sierpnia", "września", "października", "listopada", "grudnia")
+
+    val dayOfWeek = dayNames[calendar.get(java.util.Calendar.DAY_OF_WEEK) - 1]
+    val day = calendar.get(java.util.Calendar.DAY_OF_MONTH)
+    val month = monthNames[calendar.get(java.util.Calendar.MONTH)]
+
+    return "$dayOfWeek, $day $month"
 }

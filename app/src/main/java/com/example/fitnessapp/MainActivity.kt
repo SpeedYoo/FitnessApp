@@ -35,6 +35,8 @@ import com.example.fitnessapp.domain.usecase.CalculateDistanceUseCase
 import com.example.fitnessapp.ui.screens.ActiveWorkoutScreen
 import com.example.fitnessapp.ui.screens.ProfileScreen
 import com.example.fitnessapp.ui.screens.SummaryScreen
+import com.example.fitnessapp.ui.screens.WorkoutDetailScreen
+import com.example.fitnessapp.ui.screens.WorkoutHistoryScreen
 import com.example.fitnessapp.ui.screens.WorkoutScreen
 import com.example.fitnessapp.ui.theme.FitnessAppTheme
 import com.example.fitnessapp.ui.viewmodel.ProfileViewModel
@@ -74,11 +76,15 @@ class MainActivity : ComponentActivity() {
             val repository = FitnessRepositoryImpl(prefsManager)
             currentRepository = repository
 
+            // Sprawdź czy otwarty z powiadomienia treningu
+            val shouldOpenWorkout = intent?.action == "OPEN_ACTIVE_WORKOUT"
+
             setContent {
                 FitnessAppTheme {
                     FitnessAppContent(
                         repository = repository,
-                        prefsManager = prefsManager
+                        prefsManager = prefsManager,
+                        initialScreen = if (shouldOpenWorkout) "active_workout" else "summary"
                     )
                 }
             }
@@ -103,6 +109,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // TODO: Można tu dodać logikę jeśli potrzebna
     }
 
     override fun onResume() {
@@ -171,11 +183,21 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun FitnessAppContent(
     repository: FitnessRepositoryImpl,
-    prefsManager: PreferencesManager
+    prefsManager: PreferencesManager,
+    initialScreen: String = "summary"
 ) {
-    var currentScreen by rememberSaveable { mutableStateOf("summary") }
+    var currentScreen by rememberSaveable { mutableStateOf(initialScreen) }
     var activeWorkoutType by remember { mutableStateOf("") }
+    var selectedWorkoutId by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
+
+    // Sprawdź czy trening jest aktywny przy starcie
+    LaunchedEffect(Unit) {
+        if (initialScreen == "active_workout") {
+            val prefs = context.getSharedPreferences("fitness_prefs", Context.MODE_PRIVATE)
+            activeWorkoutType = prefs.getString("current_workout_type", "Outdoor Walk") ?: "Outdoor Walk"
+        }
+    }
 
     // Inicjalizacja ViewModeli
     val summaryViewModel: SummaryViewModel = viewModel(
@@ -197,6 +219,7 @@ fun FitnessAppContent(
                 viewModel = summaryViewModel,
                 onNavigateToWorkout = { currentScreen = "workout" },
                 onNavigateToProfile = { currentScreen = "profile" },
+                onNavigateToHistory = { currentScreen = "history" },
                 modifier = Modifier.padding(innerPadding)
             )
             "workout" -> WorkoutScreen(
@@ -216,6 +239,19 @@ fun FitnessAppContent(
             "profile" -> ProfileScreen(
                 viewModel = profileViewModel,
                 onNavigateBack = { currentScreen = "summary" },
+                modifier = Modifier.padding(innerPadding)
+            )
+            "history" -> WorkoutHistoryScreen(
+                onNavigateBack = { currentScreen = "summary" },
+                onWorkoutClick = { workoutId ->
+                    selectedWorkoutId = workoutId
+                    currentScreen = "workout_detail"
+                },
+                modifier = Modifier.padding(innerPadding)
+            )
+            "workout_detail" -> WorkoutDetailScreen(
+                workoutId = selectedWorkoutId,
+                onNavigateBack = { currentScreen = "history" },
                 modifier = Modifier.padding(innerPadding)
             )
         }

@@ -125,8 +125,8 @@ class StepCounterService : Service(), SensorEventListener {
         val distanceMeters = steps * strideLength
         val distanceKm = distanceMeters / 1000
 
-        // 2. Oblicz czas aktywności (proste założenie: ~80 kroków na minutę)
-        val activeTimeMinutes = (steps / 80).coerceAtLeast(0)
+
+        val activeTimeMinutes = (steps / 60).coerceAtLeast(0)
 
         // 3. Oblicz kalorie (MET method)
         val walkingMET = when {
@@ -202,20 +202,32 @@ class StepCounterService : Service(), SensorEventListener {
     private fun loadDailySteps() {
         val prefs = getSharedPreferences("fitness_prefs", Context.MODE_PRIVATE)
 
-        // Sprawdź czy to nowy dzień
+        // Sprawdź czy to nowy dzień używając Calendar
         val lastDate = prefs.getLong("last_step_date", 0)
-        val today = System.currentTimeMillis() / (1000 * 60 * 60 * 24)
-        val lastDay = lastDate / (1000 * 60 * 60 * 24)
 
-        if (today > lastDay) {
-            // Nowy dzień - resetuj kroki
+        val calendar = java.util.Calendar.getInstance()
+        calendar.timeInMillis = System.currentTimeMillis()
+        val currentDay = calendar.get(java.util.Calendar.DAY_OF_YEAR)
+        val currentYear = calendar.get(java.util.Calendar.YEAR)
+
+        calendar.timeInMillis = lastDate
+        val lastDay = calendar.get(java.util.Calendar.DAY_OF_YEAR)
+        val lastYear = calendar.get(java.util.Calendar.YEAR)
+
+        if (currentYear > lastYear || currentDay > lastDay) {
+            // Nowy dzień - resetuj wszystkie dane
             prefs.edit().apply {
                 putInt("daily_steps", 0)
+                putInt("steps", 0)
+                putFloat("distance", 0f)
+                putInt("calories", 0)
+                putInt("active_time", 0)
                 putLong("last_step_date", System.currentTimeMillis())
+                putLong("last_update", System.currentTimeMillis())
                 apply()
             }
             currentSteps = 0
-            initialSteps = -1
+            initialSteps = -1 // Reset initial steps
         } else {
             // Ten sam dzień - załaduj zapisane kroki
             currentSteps = prefs.getInt("daily_steps", 0)

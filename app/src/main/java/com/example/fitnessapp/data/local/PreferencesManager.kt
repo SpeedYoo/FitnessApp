@@ -66,9 +66,18 @@ class PreferencesManager(context: Context) {
     // Sprawdzanie czy to nowy dzień
     fun isNewDay(): Boolean {
         val lastUpdate = prefs.getLong(KEY_LAST_UPDATE, 0)
-        val currentDay = System.currentTimeMillis() / (1000 * 60 * 60 * 24)
-        val lastDay = lastUpdate / (1000 * 60 * 60 * 24)
-        return currentDay > lastDay
+
+        // Konwertuj timestamp na dzień (ignorując godzinę)
+        val calendar = java.util.Calendar.getInstance()
+        calendar.timeInMillis = System.currentTimeMillis()
+        val currentDay = calendar.get(java.util.Calendar.DAY_OF_YEAR)
+        val currentYear = calendar.get(java.util.Calendar.YEAR)
+
+        calendar.timeInMillis = lastUpdate
+        val lastDay = calendar.get(java.util.Calendar.DAY_OF_YEAR)
+        val lastYear = calendar.get(java.util.Calendar.YEAR)
+
+        return currentYear > lastYear || currentDay > lastDay
     }
 
     companion object {

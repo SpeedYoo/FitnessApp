@@ -3,17 +3,18 @@ package com.example.fitnessapp.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,14 +32,39 @@ fun WorkoutScreen(
     onStartWorkout: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val prefs = context.getSharedPreferences("fitness_prefs", android.content.Context.MODE_PRIVATE)
+
+    var showOnlyFavorites by remember { mutableStateOf(false) }
+    var favoriteWorkouts by remember {
+        mutableStateOf(
+            prefs.getStringSet("favorite_workouts", emptySet()) ?: emptySet()
+        )
+    }
+
     val workouts = listOf(
         Workout(1, "Outdoor Walk", "🚶", Color(0xFF2D4A1F)),
-        Workout(2, "Traditional Strength Training", "🏋️", Color(0xFF2D4A1F)),
-        Workout(3, "Indoor Walk", "🚶", Color(0xFF2D4A1F)),
-        Workout(4, "Running", "🏃", Color(0xFF2D4A1F)),
-        Workout(5, "Cycling", "🚴", Color(0xFF2D4A1F)),
-        Workout(6, "Yoga", "🧘", Color(0xFF2D4A1F))
+        Workout(2, "Running", "🏃", Color(0xFF2D4A1F)),
+        Workout(3, "Cycling", "🚴", Color(0xFF2D4A1F)),
+        Workout(4, "Hiking", "⛰️", Color(0xFF2D4A1F))
     )
+
+    val filteredWorkouts = if (showOnlyFavorites) {
+        workouts.filter { favoriteWorkouts.contains(it.name) }
+    } else {
+        workouts
+    }
+
+    val toggleFavorite: (String) -> Unit = { workoutName ->
+        val newFavorites = favoriteWorkouts.toMutableSet()
+        if (newFavorites.contains(workoutName)) {
+            newFavorites.remove(workoutName)
+        } else {
+            newFavorites.add(workoutName)
+        }
+        favoriteWorkouts = newFavorites
+        prefs.edit().putStringSet("favorite_workouts", newFavorites).apply()
+    }
 
     Column(
         modifier = modifier
@@ -59,23 +85,15 @@ fun WorkoutScreen(
                 color = Color.White
             )
 
-            Row {
-                IconButton(onClick = { }) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "Start workout",
-                        tint = Color.White,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-                IconButton(onClick = { }) {
-                    Icon(
-                        imageVector = Icons.Default.FavoriteBorder,
-                        contentDescription = "Favorites",
-                        tint = Color.White,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
+            IconButton(
+                onClick = { showOnlyFavorites = !showOnlyFavorites }
+            ) {
+                Icon(
+                    imageVector = if (showOnlyFavorites) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = if (showOnlyFavorites) "Pokaż wszystkie" else "Pokaż ulubione",
+                    tint = if (showOnlyFavorites) Color(0xFFFF3B30) else Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
             }
         }
 
@@ -86,10 +104,13 @@ fun WorkoutScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.weight(1f)
         ) {
-            items(workouts) { workout ->
+            items(filteredWorkouts.size) { index ->
+                val workout = filteredWorkouts[index]
                 WorkoutCard(
                     workout = workout,
-                    onStartWorkout = onStartWorkout
+                    isFavorite = favoriteWorkouts.contains(workout.name),
+                    onStartWorkout = onStartWorkout,
+                    onToggleFavorite = toggleFavorite
                 )
             }
         }
@@ -136,7 +157,9 @@ fun WorkoutScreen(
 @Composable
 fun WorkoutCard(
     workout: Workout,
-    onStartWorkout: (String) -> Unit
+    isFavorite: Boolean,
+    onStartWorkout: (String) -> Unit,
+    onToggleFavorite: (String) -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -200,15 +223,15 @@ fun WorkoutCard(
 
             // Ikona serca (prawo-dół)
             IconButton(
-                onClick = { },
+                onClick = { onToggleFavorite(workout.name) },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .size(40.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.FavoriteBorder,
-                    contentDescription = "Add to favorites",
-                    tint = Color.White.copy(alpha = 0.6f),
+                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = "Toggle favorite",
+                    tint = if (isFavorite) Color(0xFFFF3B30) else Color.White.copy(alpha = 0.6f),
                     modifier = Modifier.size(24.dp)
                 )
             }

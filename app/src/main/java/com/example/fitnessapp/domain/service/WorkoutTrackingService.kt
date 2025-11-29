@@ -24,6 +24,8 @@ class WorkoutTrackingService : Service() {
     private lateinit var locationCallback: LocationCallback
 
     private var workoutStartTime = 0L
+    private var pausedTime = 0L // Czas spędzony na pauzie
+    private var pauseStartTime = 0L
     private var isTracking = false
     private var isPaused = false
     private var totalDistance = 0f // w metrach
@@ -31,6 +33,9 @@ class WorkoutTrackingService : Service() {
     private val routePoints = mutableListOf<RoutePoint>()
 
     private var workoutType = "Outdoor Walk"
+
+    // Timer do odświeżania UI
+    private var updateTimer: java.util.Timer? = null
 
     companion object {
         const val CHANNEL_ID = "WorkoutTrackingChannel"
@@ -49,6 +54,16 @@ class WorkoutTrackingService : Service() {
         const val EXTRA_CALORIES = "calories"
 
         fun startWorkout(context: Context, workoutType: String) {
+
+            if (!hasLocationPermission(context)) {
+                android.widget.Toast.makeText(
+                    context,
+                    "Brak uprawnień lokalizacji. Przyznaj uprawnienia w ustawieniach.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                return
+            }
+
             val intent = Intent(context, WorkoutTrackingService::class.java).apply {
                 action = ACTION_START
                 putExtra(EXTRA_WORKOUT_TYPE, workoutType)
@@ -57,6 +72,15 @@ class WorkoutTrackingService : Service() {
                 context.startForegroundService(intent)
             } else {
                 context.startService(intent)
+            }
+        }
+
+        private fun hasLocationPermission(context: Context): Boolean {
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                context.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) ==
+                        android.content.pm.PackageManager.PERMISSION_GRANTED
+            } else {
+                true
             }
         }
 
@@ -105,6 +129,9 @@ class WorkoutTrackingService : Service() {
         when (intent?.action) {
             ACTION_START -> {
                 workoutType = intent.getStringExtra(EXTRA_WORKOUT_TYPE) ?: "Outdoor Walk"
+                // Zapisz typ treningu do SharedPreferences
+                val prefs = getSharedPreferences("fitness_prefs", Context.MODE_PRIVATE)
+                prefs.edit().putString("current_workout_type", workoutType).apply()
                 startTracking()
             }
             ACTION_PAUSE -> pauseTracking()
@@ -118,9 +145,21 @@ class WorkoutTrackingService : Service() {
         isTracking = true
         isPaused = false
         workoutStartTime = System.currentTimeMillis()
+        pausedTime = 0L
         totalDistance = 0f
         lastLocation = null
         routePoints.clear()
+
+        // Uruchom timer do odświeżania UI co sekundę
+        updateTimer = java.util.Timer()
+        updateTimer?.scheduleAtFixedRate(object : java.util.TimerTask() {
+            override fun run() {
+                if (isTracking && !isPaused) {
+                    updateNotification()
+                    broadcastUpdate()
+                }
+            }
+        }, 0, 1000) // Co 1 sekundę
 
         val locationRequest = LocationRequest.Builder(
             Priority.PRIORITY_HIGH_ACCURACY,
@@ -144,26 +183,39 @@ class WorkoutTrackingService : Service() {
 
     private fun pauseTracking() {
         isPaused = true
+        pauseStartTime = System.currentTimeMillis()
         updateNotification()
     }
 
     private fun resumeTracking() {
-        isPaused = false
+        if (isPaused) {
+            pausedTime += System.currentTimeMillis() - pauseStartTime
+            isPaused = false
+        }
         updateNotification()
     }
 
     private fun stopTracking() {
-        isTracking = false
-        fusedLocationClient.removeLocationUpdates(locationCallback)
+        // WAŻNE: Najpierw zapisz trening (gdy isTracking=true), potem zatrzymaj
+        android.util.Log.d("WorkoutService", "stopTracking() called")
 
-        // Zapisz trening do bazy danych
+        fusedLocationClient.removeLocationUpdates(locationCallback)
+        updateTimer?.cancel()
+        updateTimer = null
+
+        // Zapisz trening PRZED zmianą isTracking na false!
         saveWorkout()
+
+        // Dopiero teraz przestań trackować
+        isTracking = false
 
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
     private fun handleNewLocation(location: Location) {
+        android.util.Log.d("WorkoutService", "New GPS location: lat=${location.latitude}, lon=${location.longitude}, accuracy=${location.accuracy}m")
+
         // Dodaj punkt do trasy
         routePoints.add(RoutePoint(
             latitude = location.latitude,
@@ -171,12 +223,18 @@ class WorkoutTrackingService : Service() {
             timestamp = System.currentTimeMillis()
         ))
 
+        android.util.Log.d("WorkoutService", "Total route points: ${routePoints.size}")
+
         // Oblicz dystans
         lastLocation?.let { last ->
             val distance = last.distanceTo(location)
+            android.util.Log.d("WorkoutService", "Distance from last point: ${distance}m")
             // Ignoruj skoki GPS (>50m w 3 sekundy to ~60km/h)
             if (distance < 50) {
                 totalDistance += distance
+                android.util.Log.d("WorkoutService", "Total distance: ${totalDistance}m (${totalDistance/1000}km)")
+            } else {
+                android.util.Log.d("WorkoutService", "GPS jump detected, ignoring (${distance}m)")
             }
         }
         lastLocation = location
@@ -186,11 +244,26 @@ class WorkoutTrackingService : Service() {
     }
 
     private fun getDuration(): Long {
-        return if (isTracking) {
-            System.currentTimeMillis() - workoutStartTime
+        val elapsed = if (isTracking) {
+            System.currentTimeMillis() - workoutStartTime - pausedTime
         } else {
-            0
+            // Jeśli już nie trackujemy, użyj ostatniego znanego czasu
+            if (workoutStartTime > 0) {
+                val endTime = System.currentTimeMillis()
+                endTime - workoutStartTime - pausedTime
+            } else {
+                0
+            }
         }
+
+        android.util.Log.d("WorkoutService", "getDuration() called:")
+        android.util.Log.d("WorkoutService", "  isTracking: $isTracking")
+        android.util.Log.d("WorkoutService", "  workoutStartTime: $workoutStartTime")
+        android.util.Log.d("WorkoutService", "  currentTime: ${System.currentTimeMillis()}")
+        android.util.Log.d("WorkoutService", "  pausedTime: $pausedTime")
+        android.util.Log.d("WorkoutService", "  elapsed: $elapsed")
+
+        return elapsed.coerceAtLeast(0)
     }
 
     private fun getCalories(): Int {
@@ -231,12 +304,15 @@ class WorkoutTrackingService : Service() {
     }
 
     private fun createNotification(durationSeconds: Long, distanceKm: Float): Notification {
-        val notificationIntent = Intent(this, MainActivity::class.java)
+        val notificationIntent = Intent(this, MainActivity::class.java).apply {
+            action = "OPEN_ACTIVE_WORKOUT"
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
         val pendingIntent = PendingIntent.getActivity(
             this,
             0,
             notificationIntent,
-            PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
         val status = if (isPaused) "⏸ Wstrzymano" else "🏃 Trening"
@@ -280,16 +356,63 @@ class WorkoutTrackingService : Service() {
     }
 
     private fun saveWorkout() {
-        // TODO: Zapisz do Room Database
         val prefs = getSharedPreferences("fitness_prefs", Context.MODE_PRIVATE)
 
-        // Na razie zapisujemy tylko podstawowe dane
+        val durationMs = getDuration()
+        val durationSeconds = durationMs / 1000
+        val durationMinutes = durationSeconds / 60
+
+        android.util.Log.d("WorkoutService", "Saving workout:")
+        android.util.Log.d("WorkoutService", "Duration MS: $durationMs")
+        android.util.Log.d("WorkoutService", "Duration Seconds: $durationSeconds")
+        android.util.Log.d("WorkoutService", "Duration Minutes: $durationMinutes")
+        android.util.Log.d("WorkoutService", "Distance: ${totalDistance / 1000} km")
+        android.util.Log.d("WorkoutService", "Calories: ${getCalories()}")
+
+        // Zapisz podstawowe dane
         prefs.edit().apply {
-            putLong("last_workout_duration", getDuration() / 1000 / 60) // minuty
-            putFloat("last_workout_distance", totalDistance / 1000) // km
+            putLong("last_workout_duration", durationMinutes)
+            putFloat("last_workout_distance", totalDistance / 1000)
             putInt("last_workout_calories", getCalories())
             putString("last_workout_type", workoutType)
             putLong("last_workout_timestamp", System.currentTimeMillis())
+            apply()
+        }
+
+        // Zapisz do historii
+        saveWorkoutToHistory(durationMinutes)
+    }
+
+    private fun saveWorkoutToHistory(durationMinutes: Long) {
+        val prefs = getSharedPreferences("fitness_prefs", Context.MODE_PRIVATE)
+
+        // Pobierz obecną liczbę treningów
+        val workoutCount = prefs.getInt("workout_count", 0)
+        val newCount = workoutCount + 1
+
+        // Zapisz punkty trasy jako JSON (jeśli są)
+        val routeJson = if (routePoints.isNotEmpty()) {
+            try {
+                com.google.gson.Gson().toJson(routePoints)
+            } catch (e: Exception) {
+                "[]"
+            }
+        } else {
+            "[]"
+        }
+
+        android.util.Log.d("WorkoutService", "Saving workout $newCount with ${routePoints.size} GPS points")
+
+        // Zapisz nowy trening z prefiksem workout_X_
+        prefs.edit().apply {
+            putInt("workout_count", newCount)
+            putString("workout_${newCount}_type", workoutType)
+            putLong("workout_${newCount}_timestamp", System.currentTimeMillis())
+            putLong("workout_${newCount}_duration", durationMinutes)
+            putFloat("workout_${newCount}_distance", totalDistance / 1000) // km
+            putInt("workout_${newCount}_calories", getCalories())
+            putString("workout_${newCount}_route", routeJson) // Zapisz trasę GPS
+            putBoolean("workout_${newCount}_deleted", false) // Flaga czy usunięty
             apply()
         }
     }
@@ -298,6 +421,7 @@ class WorkoutTrackingService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        updateTimer?.cancel()
         if (isTracking) {
             fusedLocationClient.removeLocationUpdates(locationCallback)
         }

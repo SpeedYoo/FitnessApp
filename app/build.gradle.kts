@@ -92,4 +92,6 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
+
+    implementation("com.google.code.gson:gson:2.10.1")
 }
