@@ -1,5 +1,6 @@
 package com.example.fitnessapp.ui.screens
 
+import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -25,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.fitnessapp.domain.service.WorkoutTrackingService
 
+@SuppressLint("DefaultLocale")
 @Composable
 fun ActiveWorkoutScreen(
     workoutType: String,
@@ -102,7 +104,6 @@ fun ActiveWorkoutScreen(
 
         Spacer(modifier = Modifier.height(48.dp))
 
-        // Statystyki
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
@@ -232,6 +233,7 @@ fun WorkoutStat(
     }
 }
 
+@SuppressLint("DefaultLocale")
 private fun formatDuration(seconds: Long): String {
     val hours = seconds / 3600
     val minutes = (seconds % 3600) / 60

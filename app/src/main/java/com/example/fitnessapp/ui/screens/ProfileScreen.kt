@@ -26,7 +26,6 @@ fun ProfileScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Obserwowanie profilu z ViewModela
     val profile by viewModel.userProfile.collectAsState()
 
     var age by remember { mutableStateOf(profile.age.toString()) }

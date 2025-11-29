@@ -114,7 +114,6 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        // TODO: Można tu dodać logikę jeśli potrzebna
     }
 
     override fun onResume() {
@@ -175,8 +174,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Opcjonalnie: zatrzymaj serwis gdy aplikacja jest zamykana
-        // StepCounterService.stop(this)
     }
 }
 

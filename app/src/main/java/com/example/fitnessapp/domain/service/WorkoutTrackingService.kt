@@ -1,5 +1,6 @@
 package com.example.fitnessapp.domain.service
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -14,6 +15,7 @@ import android.os.Looper
 import androidx.core.app.NotificationCompat
 import com.example.fitnessapp.MainActivity
 import com.google.android.gms.location.*
+import androidx.core.content.edit
 
 /**
  * Foreground Service do śledzenia treningu z GPS
@@ -131,7 +133,7 @@ class WorkoutTrackingService : Service() {
                 workoutType = intent.getStringExtra(EXTRA_WORKOUT_TYPE) ?: "Outdoor Walk"
                 // Zapisz typ treningu do SharedPreferences
                 val prefs = getSharedPreferences("fitness_prefs", Context.MODE_PRIVATE)
-                prefs.edit().putString("current_workout_type", workoutType).apply()
+                prefs.edit { putString("current_workout_type", workoutType) }
                 startTracking()
             }
             ACTION_PAUSE -> pauseTracking()
@@ -152,7 +154,7 @@ class WorkoutTrackingService : Service() {
 
         // Uruchom timer do odświeżania UI co sekundę
         updateTimer = java.util.Timer()
-        updateTimer?.scheduleAtFixedRate(object : java.util.TimerTask() {
+        updateTimer?.schedule(object : java.util.TimerTask() {
             override fun run() {
                 if (isTracking && !isPaused) {
                     updateNotification()
@@ -176,7 +178,6 @@ class WorkoutTrackingService : Service() {
                 Looper.getMainLooper()
             )
         } catch (e: SecurityException) {
-            // Brak uprawnień
             stopSelf()
         }
     }
@@ -303,6 +304,7 @@ class WorkoutTrackingService : Service() {
         sendBroadcast(intent)
     }
 
+    @SuppressLint("DefaultLocale")
     private fun createNotification(durationSeconds: Long, distanceKm: Float): Notification {
         val notificationIntent = Intent(this, MainActivity::class.java).apply {
             action = "OPEN_ACTIVE_WORKOUT"
@@ -344,6 +346,7 @@ class WorkoutTrackingService : Service() {
         }
     }
 
+    @SuppressLint("DefaultLocale")
     private fun formatDuration(seconds: Long): String {
         val hours = seconds / 3600
         val minutes = (seconds % 3600) / 60
@@ -403,16 +406,15 @@ class WorkoutTrackingService : Service() {
 
         android.util.Log.d("WorkoutService", "Saving workout $newCount with ${routePoints.size} GPS points")
 
-        // Zapisz nowy trening z prefiksem workout_X_
         prefs.edit().apply {
             putInt("workout_count", newCount)
             putString("workout_${newCount}_type", workoutType)
             putLong("workout_${newCount}_timestamp", System.currentTimeMillis())
             putLong("workout_${newCount}_duration", durationMinutes)
-            putFloat("workout_${newCount}_distance", totalDistance / 1000) // km
+            putFloat("workout_${newCount}_distance", totalDistance / 1000)
             putInt("workout_${newCount}_calories", getCalories())
-            putString("workout_${newCount}_route", routeJson) // Zapisz trasę GPS
-            putBoolean("workout_${newCount}_deleted", false) // Flaga czy usunięty
+            putString("workout_${newCount}_route", routeJson)
+            putBoolean("workout_${newCount}_deleted", false)
             apply()
         }
     }

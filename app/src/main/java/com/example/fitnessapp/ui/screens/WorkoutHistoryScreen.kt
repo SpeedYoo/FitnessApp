@@ -1,5 +1,6 @@
 package com.example.fitnessapp.ui.screens
 
+import android.annotation.SuppressLint
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -145,6 +146,7 @@ fun WorkoutHistoryScreen(
     }
 }
 
+@SuppressLint("DefaultLocale")
 @Composable
 fun WorkoutHistoryCard(
     workout: WorkoutHistoryItem,
@@ -207,7 +209,7 @@ fun WorkoutHistoryCard(
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "${workout.duration} min • ${workout.calories} kcal",
+                    text = "${formatDuration(workout.duration)} • ${workout.calories} kcal",
                     fontSize = 12.sp,
                     color = Color.LightGray
                 )
@@ -226,6 +228,7 @@ private fun getWorkoutEmoji(type: String): String {
     }
 }
 
+@SuppressLint("DefaultLocale")
 private fun formatDate(timestamp: Long): String {
     val calendar = java.util.Calendar.getInstance()
     calendar.timeInMillis = timestamp
@@ -245,5 +248,16 @@ private fun formatDate(timestamp: Long): String {
             calendar.get(java.util.Calendar.YEAR),
             calendar.get(java.util.Calendar.HOUR_OF_DAY),
             calendar.get(java.util.Calendar.MINUTE))
+    }
+}
+
+@SuppressLint("DefaultLocale")
+private fun formatDuration(minutes: Long): String {
+    val hours = minutes / 60
+    val mins = minutes % 60
+    return if (hours > 0) {
+        String.format("%dh %02dm", hours, mins)
+    } else {
+        String.format("%d min", mins)
     }
 }

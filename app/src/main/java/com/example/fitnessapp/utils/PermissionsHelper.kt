@@ -1,4 +1,4 @@
-package com.example.fitnessapp.util
+package com.example.fitnessapp.utils
 
 import android.Manifest
 import android.content.Context

@@ -2,17 +2,23 @@ package com.example.fitnessapp.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.fitnessapp.ui.components.AnimatedProgressRing
+import com.example.fitnessapp.ui.components.NavigationButton
+import com.example.fitnessapp.ui.components.ProgressStatCard
+import com.example.fitnessapp.ui.components.SimpleStatCard
+import com.example.fitnessapp.ui.theme.*
+import com.example.fitnessapp.ui.utils.FitnessUtils
 import com.example.fitnessapp.ui.viewmodel.SummaryViewModel
 
 @Composable
@@ -23,329 +29,203 @@ fun SummaryScreen(
     onNavigateToHistory: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Obserwowanie stanu z ViewModela
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
     // Trigger do odświeżania licznika treningów
     var refreshTrigger by remember { mutableIntStateOf(0) }
 
-    // Odśwież gdy ekran się pokazuje
     LaunchedEffect(Unit) {
         refreshTrigger++
+        while (true) {
+            kotlinx.coroutines.delay(2000)
+            refreshTrigger++
+        }
     }
 
-    // Oblicz liczbę treningów w tym tygodniu - z odświeżaniem
+    // Oblicz liczbę treningów w tym tygodniu
     val weeklyWorkouts by remember(refreshTrigger) {
         derivedStateOf {
-            val prefs = context.getSharedPreferences("fitness_prefs", android.content.Context.MODE_PRIVATE)
-            val workoutCount = prefs.getInt("workout_count", 0)
-            val calendar = java.util.Calendar.getInstance()
-            val currentWeek = calendar.get(java.util.Calendar.WEEK_OF_YEAR)
-            val currentYear = calendar.get(java.util.Calendar.YEAR)
-
-            var weekCount = 0
-            for (i in 1..workoutCount) {
-                // WAŻNE: Sprawdź czy nie został usunięty
-                val isDeleted = prefs.getBoolean("workout_${i}_deleted", false)
-                if (isDeleted) continue
-
-                val timestamp = prefs.getLong("workout_${i}_timestamp", 0)
-                if (timestamp == 0L) continue
-
-                calendar.timeInMillis = timestamp
-                val workoutWeek = calendar.get(java.util.Calendar.WEEK_OF_YEAR)
-                val workoutYear = calendar.get(java.util.Calendar.YEAR)
-
-                if (workoutWeek == currentWeek && workoutYear == currentYear) {
-                    weekCount++
-                }
-            }
-            weekCount
+            calculateWeeklyWorkouts(context)
         }
     }
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF000000))
-            .padding(16.dp)
+            .background(BackgroundBlack)
+            .verticalScroll(rememberScrollState())
+            .padding(Dimensions.paddingLarge)
     ) {
-        // Nagłówek z ikoną profilu
+        // Nagłówek
+        SummaryHeader(
+            onNavigateToProfile = onNavigateToProfile
+        )
+
+        Spacer(modifier = Modifier.height(Dimensions.spacingXLarge))
+
+        // Karta Aktywności (Kalorie) - pełna szerokość z kółkiem
+        val caloriesProgress = if (uiState.caloriesGoal > 0) {
+            uiState.calories.toFloat() / uiState.caloriesGoal.toFloat()
+        } else 0f
+
+        ProgressStatCard(
+            title = "Aktywność",
+            subtitle = "Dzisiaj",
+            currentValue = FitnessUtils.formatNumber(uiState.calories),
+            goalValue = FitnessUtils.formatNumber(uiState.caloriesGoal),
+            unit = "kcal",
+            progress = caloriesProgress,
+            progressColors = listOf(FitnessRed, FitnessRedLight)
+        )
+
+        Spacer(modifier = Modifier.height(Dimensions.spacingLarge))
+
+        // Karta Kroków - pełna szerokość z kółkiem
+        val stepsProgress = if (uiState.stepsGoal > 0) {
+            uiState.steps.toFloat() / uiState.stepsGoal.toFloat()
+        } else 0f
+
+        ProgressStatCard(
+            title = "Ilość kroków",
+            subtitle = "Dzisiaj",
+            currentValue = FitnessUtils.formatNumber(uiState.steps),
+            goalValue = FitnessUtils.formatNumber(uiState.stepsGoal),
+            unit = "kroków",
+            progress = stepsProgress,
+            progressColors = listOf(FitnessPurple, FitnessPurpleLight)
+        )
+
+        Spacer(modifier = Modifier.height(Dimensions.spacingLarge))
+
+        // Rząd: Dystans, Treningi, W ruchu
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalArrangement = Arrangement.spacedBy(Dimensions.spacingMedium)
         ) {
-            Column {
-                Text(
-                    text = "Statystyki",
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Text(
-                    text = getCurrentDate(),
-                    fontSize = 14.sp,
-                    color = Color.Gray
-                )
-            }
-
-            IconButton(onClick = onNavigateToProfile) {
-                Surface(
-                    modifier = Modifier.size(40.dp),
-                    color = Color(0xFF2C2C2E),
-                    shape = CircleShape
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "👤",
-                            fontSize = 20.sp
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Karta aktywności (główna) - DANE Z VIEWMODELA
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(150.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = Color(0xFF2C2C2E)
-            ),
-            shape = RoundedCornerShape(20.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Circular progress indicator
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(80.dp)
-                ) {
-                    val progress = if (uiState.caloriesGoal > 0) {
-                        uiState.calories.toFloat() / uiState.caloriesGoal.toFloat()
-                    } else {
-                        0f
-                    }
-
-                    CircularProgressIndicator(
-                        progress = { progress.coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxSize(),
-                        color = Color(0xFFFF3B30),
-                        strokeWidth = 8.dp,
-                        trackColor = Color(0xFF3A3A3C),
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(20.dp))
-
-                Column {
-                    Text(
-                        text = "Aktywność",
-                        fontSize = 16.sp,
-                        color = Color.LightGray
-                    )
-                    Text(
-                        text = "${uiState.calories}/${uiState.caloriesGoal} kcal",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFFF3B30)
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Rząd z kartami: Ilość kroków i Dystans - DANE Z VIEWMODELA
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            StatCard(
-                title = "Ilość kroków",
-                subtitle = "Dzisiaj",
-                value = "${formatNumber(uiState.steps)} / ${formatNumber(uiState.stepsGoal)}",
-                valueColor = Color(0xFFBF5AF2),
-                modifier = Modifier.weight(1f)
-            )
-
-            StatCard(
+            SimpleStatCard(
                 title = "Dystans",
                 subtitle = "Dzisiaj",
                 value = uiState.distance,
-                valueColor = Color(0xFF5E5CE6),
+                valueColor = FitnessIndigo,
                 modifier = Modifier.weight(1f)
+            )
+
+            SimpleStatCard(
+                title = "Treningi",
+                subtitle = "Ten tydzień",
+                value = "$weeklyWorkouts",
+                valueColor = FitnessYellow,
+                modifier = Modifier.weight(1f),
+                onClick = onNavigateToHistory
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Dimensions.spacingMedium))
 
-        // Rząd z kartami: Treningi i W ruchu
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Karta treningów - KLIKALNA!
-            Card(
-                onClick = onNavigateToHistory,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(150.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF2C2C2E)
-                ),
-                shape = RoundedCornerShape(20.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text(
-                            text = "Treningi",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "W tym tygodniu",
-                            fontSize = 12.sp,
-                            color = Color.LightGray
-                        )
-                    }
-
-                    Text(
-                        text = "$weeklyWorkouts",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFFFCC00)
-                    )
-                }
-            }
-
-            StatCard(
-                title = "W ruchu",
-                subtitle = "Dzisiaj",
-                value = "${uiState.activeTimeMinutes} minut",
-                valueColor = Color(0xFF32D74B),
-                modifier = Modifier.weight(1f)
-            )
-        }
+        // Karta W ruchu - pełna szerokość
+        SimpleStatCard(
+            title = "W ruchu",
+            subtitle = "Dzisiaj",
+            value = "${uiState.activeTimeMinutes} minut",
+            valueColor = FitnessGreen,
+            modifier = Modifier.fillMaxWidth()
+        )
 
         Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(Dimensions.spacingLarge))
 
-        // Dolne przyciski nawigacji
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Button(
-                onClick = { },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Transparent,
-                    contentColor = Color(0xFF32D74B)
-                ),
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.height(44.dp)
-            ) {
-                Text("Statystyki")
-            }
+        // Dolna nawigacja
+        BottomNavigationBar(
+            onNavigateToWorkout = onNavigateToWorkout
+        )
 
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Button(
-                onClick = onNavigateToWorkout,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF2C2C2E),
-                    contentColor = Color.White
-                ),
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.height(44.dp)
-            ) {
-                Text("Treningi")
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Dimensions.spacingLarge))
     }
 }
 
 @Composable
-fun StatCard(
-    title: String,
-    subtitle: String,
-    value: String,
-    valueColor: Color,
-    modifier: Modifier = Modifier
+private fun SummaryHeader(
+    onNavigateToProfile: () -> Unit
 ) {
-    Card(
-        modifier = modifier.height(150.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF2C2C2E)
-        ),
-        shape = RoundedCornerShape(20.dp)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column {
-                Text(
-                    text = title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.White
-                )
-                Text(
-                    text = subtitle,
-                    fontSize = 12.sp,
-                    color = Color.LightGray
-                )
-            }
-
+        Column {
             Text(
-                text = value,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = valueColor
+                text = "Statystyki",
+                style = FitnessTextStyles.screenTitle,
+                color = TextWhite
             )
+            Text(
+                text = FitnessUtils.getCurrentDate(),
+                style = FitnessTextStyles.dateText,
+                color = TextGray
+            )
+        }
+
+        IconButton(onClick = onNavigateToProfile) {
+            Surface(
+                modifier = Modifier.size(Dimensions.avatarSizeMedium),
+                color = SurfaceDark,
+                shape = CircleShape
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "👤",
+                        fontSize = 20.sp
+                    )
+                }
+            }
         }
     }
 }
 
-// Helper do formatowania liczb (10000 -> "10 000")
-private fun formatNumber(number: Int): String {
-    return number.toString()
-        .reversed()
-        .chunked(3)
-        .joinToString(" ")
-        .reversed()
+@Composable
+private fun BottomNavigationBar(
+    onNavigateToWorkout: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        NavigationButton(
+            text = "Statystyki",
+            isSelected = true,
+            onClick = { }
+        )
+
+        Spacer(modifier = Modifier.width(Dimensions.spacingMedium))
+
+        NavigationButton(
+            text = "Treningi",
+            isSelected = false,
+            onClick = onNavigateToWorkout
+        )
+    }
 }
 
-// Helper do wyświetlania dzisiejszej daty
-private fun getCurrentDate(): String {
-    val calendar = java.util.Calendar.getInstance()
-    val dayNames = arrayOf("Niedziela", "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota")
-    val monthNames = arrayOf("stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca",
-        "lipca", "sierpnia", "września", "października", "listopada", "grudnia")
+/**
+ * Oblicza liczbę treningów w bieżącym tygodniu
+ */
+private fun calculateWeeklyWorkouts(context: android.content.Context): Int {
+    val prefs = context.getSharedPreferences("fitness_prefs", android.content.Context.MODE_PRIVATE)
+    val workoutCount = prefs.getInt("workout_count", 0)
 
-    val dayOfWeek = dayNames[calendar.get(java.util.Calendar.DAY_OF_WEEK) - 1]
-    val day = calendar.get(java.util.Calendar.DAY_OF_MONTH)
-    val month = monthNames[calendar.get(java.util.Calendar.MONTH)]
+    var weekCount = 0
+    for (i in 1..workoutCount) {
+        val isDeleted = prefs.getBoolean("workout_${i}_deleted", false)
+        if (isDeleted) continue
 
-    return "$dayOfWeek, $day $month"
+        val timestamp = prefs.getLong("workout_${i}_timestamp", 0)
+        if (timestamp == 0L) continue
+
+        if (FitnessUtils.isThisWeek(timestamp)) {
+            weekCount++
+        }
+    }
+    return weekCount
 }

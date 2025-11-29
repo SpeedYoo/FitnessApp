@@ -1,5 +1,6 @@
 package com.example.fitnessapp.ui.viewmodel
 
+import android.annotation.SuppressLint
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -57,7 +58,7 @@ class SummaryViewModel(
             calories = fitnessData.calories,
             caloriesGoal = userProfile.dailyCaloriesGoal,
             activeTimeMinutes = fitnessData.activeTimeMinutes,
-            lastWorkoutDistance = "217,2 Km" // TODO: z historii treningów
+            lastWorkoutDistance = "217,2 Km"
         )
     }
 
@@ -92,6 +93,7 @@ class SummaryViewModel(
         }
     }
 
+    @SuppressLint("DefaultLocale")
     private fun formatDistance(distanceKm: Float): String {
         return String.format("%.1f Km", distanceKm).replace('.', ',')
     }

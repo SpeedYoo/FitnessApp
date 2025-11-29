@@ -1,11 +1,13 @@
 package com.example.fitnessapp.ui.screens
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
@@ -17,8 +19,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.google.maps.android.compose.*
 
 data class RoutePointData(
     val latitude: Double,
@@ -26,6 +32,7 @@ data class RoutePointData(
     val timestamp: Long
 )
 
+@SuppressLint("DefaultLocale")
 @Composable
 fun WorkoutDetailScreen(
     workoutId: Int,
@@ -57,6 +64,7 @@ fun WorkoutDetailScreen(
             val type = object : TypeToken<List<RoutePointData>>() {}.type
             Gson().fromJson<List<RoutePointData>>(routeJson, type) ?: emptyList()
         } catch (e: Exception) {
+            android.util.Log.e("WorkoutDetail", "Error parsing route: ${e.message}")
             emptyList()
         }
     }
@@ -79,7 +87,7 @@ fun WorkoutDetailScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onNavigateBack) {
                     Icon(
-                        imageVector = Icons.Default.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Powrót",
                         tint = Color.White,
                         modifier = Modifier.size(28.dp)
@@ -116,7 +124,7 @@ fun WorkoutDetailScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            // Mapa GPS lub placeholder
+            // Mapa GPS
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -128,28 +136,7 @@ fun WorkoutDetailScreen(
                 shape = RoundedCornerShape(16.dp)
             ) {
                 if (routePoints.isNotEmpty()) {
-                    // TODO: Mapa GPS - wymaga Google Maps API Key
-                    // Na razie pokazujemy info o trasie
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("🗺️", fontSize = 48.sp)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                "Trasa GPS zapisana",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                            Text(
-                                "${routePoints.size} punktów GPS",
-                                fontSize = 14.sp,
-                                color = Color.Gray
-                            )
-                        }
-                    }
+                    WorkoutMapView(routePoints = routePoints)
                 } else {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -201,7 +188,6 @@ fun WorkoutDetailScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Dodatkowe statystyki
             if (distance > 0 && duration > 0) {
                 Card(
                     modifier = Modifier
@@ -232,7 +218,7 @@ fun WorkoutDetailScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(80.dp)            )
+            Spacer(modifier = Modifier.height(80.dp))
         }
     }
 
@@ -262,46 +248,80 @@ fun WorkoutDetailScreen(
     }
 }
 
-// MapViewComposable zakomentowane - wymaga Google Maps API Key
-// Odkomentuj gdy dodasz klucz API do AndroidManifest.xml
-/*
 @Composable
-fun MapViewComposable(routePoints: List<RoutePointData>) {
-    AndroidView(
-        factory = { context ->
-            MapView(context).apply {
-                onCreate(null)
-                getMapAsync { googleMap ->
-                    if (routePoints.isNotEmpty()) {
-                        val polylineOptions = PolylineOptions()
-                            .color(android.graphics.Color.rgb(50, 215, 75))
-                            .width(10f)
+fun WorkoutMapView(routePoints: List<RoutePointData>) {
+    // Konwertuj punkty na LatLng
+    val latLngPoints = remember(routePoints) {
+        routePoints.map { LatLng(it.latitude, it.longitude) }
+    }
 
-                        routePoints.forEach { point ->
-                            polylineOptions.add(LatLng(point.latitude, point.longitude))
-                        }
+    // Oblicz granice mapy
+    val bounds = remember(latLngPoints) {
+        if (latLngPoints.isNotEmpty()) {
+            val boundsBuilder = LatLngBounds.Builder()
+            latLngPoints.forEach { boundsBuilder.include(it) }
+            boundsBuilder.build()
+        } else null
+    }
 
-                        googleMap.addPolyline(polylineOptions)
+    // Początkowa pozycja kamery
+    val cameraPositionState = rememberCameraPositionState {
+        if (latLngPoints.isNotEmpty()) {
+            position = CameraPosition.fromLatLngZoom(latLngPoints.first(), 15f)
+        }
+    }
 
-                        val boundsBuilder = LatLngBounds.Builder()
-                        routePoints.forEach { point ->
-                            boundsBuilder.include(LatLng(point.latitude, point.longitude))
-                        }
+    // Dopasuj kamerę do trasy po załadowaniu
+    LaunchedEffect(bounds) {
+        bounds?.let {
+            cameraPositionState.animate(
+                update = com.google.android.gms.maps.CameraUpdateFactory.newLatLngBounds(it, 50),
+                durationMs = 1000
+            )
+        }
+    }
 
-                        googleMap.moveCamera(
-                            CameraUpdateFactory.newLatLngBounds(
-                                boundsBuilder.build(),
-                                100
-                            )
-                        )
-                    }
-                }
-            }
-        },
-        modifier = Modifier.fillMaxSize()
-    )
+    GoogleMap(
+        modifier = Modifier.fillMaxSize(),
+        cameraPositionState = cameraPositionState,
+        properties = MapProperties(
+            mapType = MapType.NORMAL
+        ),
+        uiSettings = MapUiSettings(
+            zoomControlsEnabled = true,
+            myLocationButtonEnabled = false,
+            mapToolbarEnabled = false
+        )
+    ) {
+        // Rysuj trasę jako polyline
+        if (latLngPoints.size >= 2) {
+            Polyline(
+                points = latLngPoints,
+                color = Color(0xFF32D74B),
+                width = 12f
+            )
+        }
+
+        // Marker startu
+        if (latLngPoints.isNotEmpty()) {
+            Marker(
+                state = MarkerState(position = latLngPoints.first()),
+                title = "Start",
+                snippet = "Początek treningu"
+            )
+        }
+
+        // Marker końca (jeśli różny od startu)
+        if (latLngPoints.size > 1) {
+            Marker(
+                state = MarkerState(position = latLngPoints.last()),
+                title = "Koniec",
+                snippet = "Koniec treningu"
+            )
+        }
+    }
 }
-*/
+
 @Composable
 fun DetailStatCard(
     label: String,
@@ -357,6 +377,7 @@ fun StatRow(label: String, value: String) {
     }
 }
 
+@SuppressLint("DefaultLocale")
 private fun formatDetailedDate(timestamp: Long): String {
     val calendar = java.util.Calendar.getInstance()
     calendar.timeInMillis = timestamp

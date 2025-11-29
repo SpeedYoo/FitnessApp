@@ -43,10 +43,10 @@ fun WorkoutScreen(
     }
 
     val workouts = listOf(
-        Workout(1, "Outdoor Walk", "🚶", Color(0xFF2D4A1F)),
-        Workout(2, "Running", "🏃", Color(0xFF2D4A1F)),
-        Workout(3, "Cycling", "🚴", Color(0xFF2D4A1F)),
-        Workout(4, "Hiking", "⛰️", Color(0xFF2D4A1F))
+        Workout(1, "Spacer", "🚶", Color(0xFF2D4A1F)),
+        Workout(2, "Bieganie", "🏃", Color(0xFF2D4A1F)),
+        Workout(3, "Jazda na rowerze", "🚴", Color(0xFF2D4A1F)),
+        Workout(4, "Chodzenie po górach", "⛰️", Color(0xFF2D4A1F))
     )
 
     val filteredWorkouts = if (showOnlyFavorites) {

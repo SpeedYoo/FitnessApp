@@ -16,10 +16,6 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.example.fitnessapp.MainActivity
 
-/**
- * Foreground Service do zliczania kroków w tle
- * Zgodnie z dokumentacją - używa Sensor.TYPE_STEP_COUNTER
- */
 class StepCounterService : Service(), SensorEventListener {
 
     private lateinit var sensorManager: SensorManager
