@@ -20,6 +20,8 @@ val TextLightGray = Color.LightGray
 // Kolory akcentowe (fitness)
 // ============================================
 
+val ErrorRed = Color.Red
+
 // Czerwony - Kalorie / Aktywność
 val FitnessRed = Color(0xfffa094e)
 val FitnessRedLight = Color(0xfffa094e)

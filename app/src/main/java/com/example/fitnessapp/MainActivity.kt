@@ -1,68 +1,34 @@
 package com.example.fitnessapp
 
-import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.core.content.ContextCompat
 import com.example.fitnessapp.data.local.PreferencesManager
 import com.example.fitnessapp.data.repository.FitnessRepositoryImpl
-import com.example.fitnessapp.domain.service.StepCounterService
-import com.example.fitnessapp.domain.service.WorkoutTrackingService
-import com.example.fitnessapp.domain.usecase.CalculateActiveTimeUseCase
-import com.example.fitnessapp.domain.usecase.CalculateCaloriesUseCase
-import com.example.fitnessapp.domain.usecase.CalculateDistanceUseCase
-import com.example.fitnessapp.ui.screens.ActiveWorkoutScreen
-import com.example.fitnessapp.ui.screens.ProfileScreen
-import com.example.fitnessapp.ui.screens.SummaryScreen
-import com.example.fitnessapp.ui.screens.WorkoutDetailScreen
-import com.example.fitnessapp.ui.screens.WorkoutHistoryScreen
-import com.example.fitnessapp.ui.screens.WorkoutScreen
+import com.example.fitnessapp.service.StepCounterService
+import com.example.fitnessapp.ui.navigation.FitnessApp
+import com.example.fitnessapp.ui.navigation.Screen
+import com.example.fitnessapp.ui.navigation.isWorkoutActive
 import com.example.fitnessapp.ui.theme.FitnessAppTheme
-import com.example.fitnessapp.ui.viewmodel.ProfileViewModel
-import com.example.fitnessapp.ui.viewmodel.SummaryViewModel
+import com.example.fitnessapp.utils.PermissionHandler
 
 class MainActivity : ComponentActivity() {
 
-    private var serviceStarted = false
-    private var currentRepository: FitnessRepositoryImpl? = null
+    private lateinit var permissionHandler: PermissionHandler
+    private lateinit var repository: FitnessRepositoryImpl
+    private lateinit var prefsManager: PreferencesManager
 
-    // BroadcastReceiver do odbierania aktualizacji kroków z serwisu
+    private var stepCounterStarted = false
+
     private val stepUpdateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            val steps = intent?.getIntExtra(StepCounterService.EXTRA_STEPS, 0) ?: 0
-            // Odśwież dane w repository
-            currentRepository?.refreshData()
-        }
-    }
-
-    // Obsługa uprawnień - uruchamiamy serwis DOPIERO po przyznaniu uprawnień
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted && !serviceStarted) {
-            // Uprawnienie przyznane - uruchom serwis
-            startStepCounterService()
+            repository.refreshData()
         }
     }
 
@@ -70,43 +36,18 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        try {
-            // Inicjalizacja zależności
-            val prefsManager = PreferencesManager(this)
-            val repository = FitnessRepositoryImpl(prefsManager)
-            currentRepository = repository
+        initializeDependencies()
+        setupPermissionHandler()
 
-            // Sprawdź czy otwarty z powiadomienia treningu
-            val shouldOpenWorkout = intent?.action == "OPEN_ACTIVE_WORKOUT"
+        val startScreen = determineStartScreen(intent)
 
-            setContent {
-                FitnessAppTheme {
-                    FitnessAppContent(
-                        repository = repository,
-                        prefsManager = prefsManager,
-                        initialScreen = if (shouldOpenWorkout) "active_workout" else "summary"
-                    )
-                }
-            }
-
-        } catch (e: Exception) {
-            e.printStackTrace()
-            setContent {
-                FitnessAppTheme {
-                    Surface(modifier = Modifier.fillMaxSize()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "Błąd inicjalizacji: ${e.message}",
-                                color = Color.White
-                            )
-                        }
-                    }
-                }
+        setContent {
+            FitnessAppTheme {
+                FitnessApp(
+                    repository = repository,
+                    prefsManager = prefsManager,
+                    startDestination = startScreen
+                )
             }
         }
     }
@@ -114,143 +55,77 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+
+        // Jeśli kliknięto powiadomienie treningu, odśwież UI
+        if (intent.action == ACTION_OPEN_ACTIVE_WORKOUT && isWorkoutActive(this)) {
+            recreate()
+        }
     }
 
     override fun onResume() {
         super.onResume()
-
-        // Rejestracja BroadcastReceiver
-        val filter = IntentFilter(StepCounterService.ACTION_UPDATE_STEPS)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(stepUpdateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            @Suppress("UnspecifiedRegisterReceiverFlag")
-            registerReceiver(stepUpdateReceiver, filter)
-        }
-
-        // Prośba o uprawnienia gdy aplikacja jest na pierwszym planie
-        if (!serviceStarted) {
-            requestPermissions()
-        }
+        registerStepReceiver()
+        permissionHandler.requestPermissions()
     }
 
     override fun onPause() {
         super.onPause()
+        unregisterStepReceiver()
+    }
+
+    private fun initializeDependencies() {
+        prefsManager = PreferencesManager(this)
+        repository = FitnessRepositoryImpl(prefsManager)
+    }
+
+    private fun setupPermissionHandler() {
+        permissionHandler = PermissionHandler(this) {
+            startStepCounterIfNeeded()
+        }
+    }
+
+    /**
+     * Określa ekran startowy na podstawie intencji i stanu aplikacji
+     */
+    private fun determineStartScreen(intent: Intent?): Screen {
+        // Sprawdź czy otwarto z powiadomienia treningu
+        if (intent?.action == ACTION_OPEN_ACTIVE_WORKOUT) {
+            return Screen.ActiveWorkout
+        }
+
+        // Sprawdź czy trening jest aktywny (np. po zamknięciu i ponownym otwarciu)
+        if (isWorkoutActive(this)) {
+            return Screen.ActiveWorkout
+        }
+
+        return Screen.Summary
+    }
+
+    private fun startStepCounterIfNeeded() {
+        if (!stepCounterStarted && PermissionHandler.hasActivityRecognition(this)) {
+            StepCounterService.start(this)
+            stepCounterStarted = true
+        }
+    }
+
+    private fun registerStepReceiver() {
+        val filter = IntentFilter(StepCounterService.ACTION_UPDATE_STEPS)
+        ContextCompat.registerReceiver(
+            this,
+            stepUpdateReceiver,
+            filter,
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+    }
+
+    private fun unregisterStepReceiver() {
         try {
             unregisterReceiver(stepUpdateReceiver)
-        } catch (e: Exception) {
-            // Receiver może już być wyrejestrowany
+        } catch (e: IllegalArgumentException) {
         }
     }
 
-    private fun requestPermissions() {
-        // Uprawnienie dla krokomierza (Android 10+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            requestPermissionLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
-        } else {
-            startStepCounterService()
-        }
-
-        // Uprawnienia GPS (dla treningów)
-        requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-        requestPermissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
-
-        // Uprawnienie dla notyfikacji (Android 13+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-    }
-
-    private fun startStepCounterService() {
-        if (!serviceStarted) {
-            try {
-                StepCounterService.start(this)
-                serviceStarted = true
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-    }
-}
-
-@Composable
-fun FitnessAppContent(
-    repository: FitnessRepositoryImpl,
-    prefsManager: PreferencesManager,
-    initialScreen: String = "summary"
-) {
-    var currentScreen by rememberSaveable { mutableStateOf(initialScreen) }
-    var activeWorkoutType by remember { mutableStateOf("") }
-    var selectedWorkoutId by remember { mutableIntStateOf(0) }
-    val context = LocalContext.current
-
-    // Sprawdź czy trening jest aktywny przy starcie
-    LaunchedEffect(Unit) {
-        if (initialScreen == "active_workout") {
-            val prefs = context.getSharedPreferences("fitness_prefs", Context.MODE_PRIVATE)
-            activeWorkoutType = prefs.getString("current_workout_type", "Outdoor Walk") ?: "Outdoor Walk"
-        }
-    }
-
-    // Inicjalizacja ViewModeli
-    val summaryViewModel: SummaryViewModel = viewModel(
-        factory = SummaryViewModel.Factory(
-            repository = repository,
-            calculateDistance = CalculateDistanceUseCase(),
-            calculateCalories = CalculateCaloriesUseCase(),
-            calculateActiveTime = CalculateActiveTimeUseCase()
-        )
-    )
-
-    val profileViewModel: ProfileViewModel = viewModel(
-        factory = ProfileViewModel.Factory(repository)
-    )
-
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        when (currentScreen) {
-            "summary" -> SummaryScreen(
-                viewModel = summaryViewModel,
-                onNavigateToWorkout = { currentScreen = "workout" },
-                onNavigateToProfile = { currentScreen = "profile" },
-                onNavigateToHistory = { currentScreen = "history" },
-                modifier = Modifier.padding(innerPadding)
-            )
-            "workout" -> WorkoutScreen(
-                onNavigateToSummary = { currentScreen = "summary" },
-                onStartWorkout = { workoutType ->
-                    activeWorkoutType = workoutType
-                    WorkoutTrackingService.startWorkout(context, workoutType)
-                    currentScreen = "active_workout"
-                },
-                modifier = Modifier.padding(innerPadding)
-            )
-            "active_workout" -> ActiveWorkoutScreen(
-                workoutType = activeWorkoutType,
-                onFinish = { currentScreen = "summary" },
-                modifier = Modifier.padding(innerPadding)
-            )
-            "profile" -> ProfileScreen(
-                viewModel = profileViewModel,
-                onNavigateBack = { currentScreen = "summary" },
-                modifier = Modifier.padding(innerPadding)
-            )
-            "history" -> WorkoutHistoryScreen(
-                onNavigateBack = { currentScreen = "summary" },
-                onWorkoutClick = { workoutId ->
-                    selectedWorkoutId = workoutId
-                    currentScreen = "workout_detail"
-                },
-                modifier = Modifier.padding(innerPadding)
-            )
-            "workout_detail" -> WorkoutDetailScreen(
-                workoutId = selectedWorkoutId,
-                onNavigateBack = { currentScreen = "history" },
-                modifier = Modifier.padding(innerPadding)
-            )
-        }
+    companion object {
+        const val ACTION_OPEN_ACTIVE_WORKOUT = "OPEN_ACTIVE_WORKOUT"
     }
 }

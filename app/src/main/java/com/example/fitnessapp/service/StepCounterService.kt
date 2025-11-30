@@ -1,5 +1,6 @@
-package com.example.fitnessapp.domain.service
+package com.example.fitnessapp.service
 
+import android.R
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -15,6 +16,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.example.fitnessapp.MainActivity
+import java.util.Calendar
 
 class StepCounterService : Service(), SensorEventListener {
 
@@ -52,7 +54,7 @@ class StepCounterService : Service(), SensorEventListener {
         startForeground(NOTIFICATION_ID, createNotification(0))
 
         // Inicjalizacja SensorManager
-        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
         stepSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
 
         if (stepSensor == null) {
@@ -94,7 +96,7 @@ class StepCounterService : Service(), SensorEventListener {
 
                 // Aktualizujemy notyfikację
                 val notification = createNotification(currentSteps)
-                val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
                 notificationManager.notify(NOTIFICATION_ID, notification)
 
                 // Wysyłamy broadcast z aktualizacją kroków
@@ -104,7 +106,7 @@ class StepCounterService : Service(), SensorEventListener {
     }
 
     private fun calculateAndSaveMetrics(steps: Int) {
-        val prefs = getSharedPreferences("fitness_prefs", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("fitness_prefs", MODE_PRIVATE)
 
         // Pobierz profil użytkownika
         val gender = prefs.getString("gender", "Mężczyzna") ?: "Mężczyzna"
@@ -165,7 +167,7 @@ class StepCounterService : Service(), SensorEventListener {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Fitness App")
             .setContentText("Dzisiaj: $steps kroków$sensorStatus")
-            .setSmallIcon(android.R.drawable.ic_menu_compass)
+            .setSmallIcon(R.drawable.ic_menu_compass)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -182,7 +184,7 @@ class StepCounterService : Service(), SensorEventListener {
                 description = "Wyświetla aktualną liczbę kroków"
             }
 
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
         }
     }
@@ -195,19 +197,19 @@ class StepCounterService : Service(), SensorEventListener {
     }
 
     private fun loadDailySteps() {
-        val prefs = getSharedPreferences("fitness_prefs", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("fitness_prefs", MODE_PRIVATE)
 
         // Sprawdź czy to nowy dzień używając Calendar
         val lastDate = prefs.getLong("last_step_date", 0)
 
-        val calendar = java.util.Calendar.getInstance()
+        val calendar = Calendar.getInstance()
         calendar.timeInMillis = System.currentTimeMillis()
-        val currentDay = calendar.get(java.util.Calendar.DAY_OF_YEAR)
-        val currentYear = calendar.get(java.util.Calendar.YEAR)
+        val currentDay = calendar.get(Calendar.DAY_OF_YEAR)
+        val currentYear = calendar.get(Calendar.YEAR)
 
         calendar.timeInMillis = lastDate
-        val lastDay = calendar.get(java.util.Calendar.DAY_OF_YEAR)
-        val lastYear = calendar.get(java.util.Calendar.YEAR)
+        val lastDay = calendar.get(Calendar.DAY_OF_YEAR)
+        val lastYear = calendar.get(Calendar.YEAR)
 
         if (currentYear > lastYear || currentDay > lastDay) {
             // Nowy dzień - resetuj wszystkie dane
@@ -230,7 +232,7 @@ class StepCounterService : Service(), SensorEventListener {
     }
 
     private fun saveDailySteps(steps: Int) {
-        val prefs = getSharedPreferences("fitness_prefs", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("fitness_prefs", MODE_PRIVATE)
         prefs.edit().apply {
             putInt("daily_steps", steps)
             putLong("last_step_date", System.currentTimeMillis())

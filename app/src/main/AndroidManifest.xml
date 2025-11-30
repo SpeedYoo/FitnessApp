@@ -41,12 +41,12 @@
         </activity>
 
         <service
-            android:name=".domain.service.StepCounterService"
+            android:name=".service.StepCounterService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
         <service
-            android:name=".domain.service.WorkoutTrackingService"
+            android:name=".service.WorkoutTrackingService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="location" />

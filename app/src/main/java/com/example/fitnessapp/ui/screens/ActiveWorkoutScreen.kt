@@ -21,7 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import com.example.fitnessapp.domain.service.WorkoutTrackingService
+import com.example.fitnessapp.service.WorkoutTrackingService
 import com.example.fitnessapp.ui.components.WorkoutStatCard
 import com.example.fitnessapp.ui.theme.*
 import com.example.fitnessapp.ui.utils.FitnessUtils
