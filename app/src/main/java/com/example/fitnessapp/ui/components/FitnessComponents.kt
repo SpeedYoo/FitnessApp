@@ -4,6 +4,9 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,6 +19,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -278,9 +282,50 @@ fun SimpleStatCard(
     }
 }
 
+enum class BottomNavTab {
+    SUMMARY,
+    WORKOUT
+}
+
 /**
- * Przycisk nawigacji dolnej
+ * Ujednolicony pasek dolnej nawigacji
  */
+@Composable
+fun BottomNavigationBar(
+    selectedTab: BottomNavTab,
+    onNavigateToSummary: () -> Unit,
+    onNavigateToWorkout: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = BackgroundBlack
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = Dimensions.spacingLarge),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            NavigationButton(
+                text = "Statystyki",
+                isSelected = selectedTab == BottomNavTab.SUMMARY,
+                onClick = onNavigateToSummary
+            )
+
+            Spacer(modifier = Modifier.width(Dimensions.spacingMedium))
+
+            NavigationButton(
+                text = "Treningi",
+                isSelected = selectedTab == BottomNavTab.WORKOUT,
+                onClick = onNavigateToWorkout
+            )
+        }
+    }
+}
+
+
 @Composable
 fun NavigationButton(
     text: String,
@@ -298,5 +343,294 @@ fun NavigationButton(
         modifier = modifier.height(Dimensions.buttonHeight)
     ) {
         Text(text)
+    }
+}
+@Composable
+fun ScreenHeader(
+    title: String,
+    onNavigateBack: (() -> Unit)? = null,
+    actions: @Composable RowScope.() -> Unit = {}
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (onNavigateBack != null) {
+                IconButton(onClick = onNavigateBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Powrót",
+                        tint = TextWhite,
+                        modifier = Modifier.size(Dimensions.iconSizeLarge)
+                    )
+                }
+                Spacer(modifier = Modifier.width(Dimensions.spacingSmall))
+            }
+            Text(
+                text = title,
+                style = FitnessTextStyles.screenTitle,
+                color = TextWhite
+            )
+        }
+        Row {
+            actions()
+        }
+    }
+}
+
+/**
+ * Nagłówek ekranu z podtytułem
+ */
+@Composable
+fun ScreenHeaderWithSubtitle(
+    title: String,
+    subtitle: String,
+    onNavigateBack: (() -> Unit)? = null,
+    actions: @Composable RowScope.() -> Unit = {}
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (onNavigateBack != null) {
+                IconButton(onClick = onNavigateBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Powrót",
+                        tint = TextWhite,
+                        modifier = Modifier.size(Dimensions.iconSizeLarge)
+                    )
+                }
+                Spacer(modifier = Modifier.width(Dimensions.spacingSmall))
+            }
+            Column {
+                Text(
+                    text = title,
+                    style = FitnessTextStyles.screenTitle,
+                    color = TextWhite
+                )
+                Text(
+                    text = subtitle,
+                    style = FitnessTextStyles.dateText,
+                    color = TextGray
+                )
+            }
+        }
+        Row {
+            actions()
+        }
+    }
+}
+
+/**
+ * Karta statystyk treningu (mała kwadratowa)
+ */
+@Composable
+fun WorkoutStatCard(
+    label: String,
+    value: String,
+    unit: String,
+    valueColor: Color = TextWhite,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.size(Dimensions.workoutStatCardSize),
+        colors = CardDefaults.cardColors(containerColor = SurfaceDark),
+        shape = RoundedCornerShape(Dimensions.cornerRadiusMedium)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(Dimensions.paddingMedium),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = label,
+                style = FitnessTextStyles.cardSubtitle,
+                color = TextLightGray
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = value,
+                style = FitnessTextStyles.statisticValue,
+                color = valueColor
+            )
+            Text(
+                text = unit,
+                fontSize = 10.sp,
+                color = TextGray
+            )
+        }
+    }
+}
+
+/**
+ * Pole tekstowe dla formularzy profilu
+ */
+@Composable
+fun FitnessTextField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    suffix: String,
+    modifier: Modifier = Modifier,
+    keyboardType: KeyboardType = KeyboardType.Number
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = label,
+            style = FitnessTextStyles.cardTitle,
+            color = TextLightGray,
+            modifier = Modifier.padding(bottom = Dimensions.spacingSmall)
+        )
+
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            placeholder = { Text(placeholder, color = TextGray) },
+            suffix = { Text(suffix, color = TextLightGray) },
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = TextWhite,
+                unfocusedTextColor = TextWhite,
+                focusedBorderColor = FitnessGreen,
+                unfocusedBorderColor = SurfaceDarkSecondary,
+                focusedContainerColor = SurfaceDark,
+                unfocusedContainerColor = SurfaceDark,
+                cursorColor = FitnessGreen
+            ),
+            shape = RoundedCornerShape(Dimensions.inputFieldCornerRadius),
+            singleLine = true
+        )
+    }
+}
+
+/**
+ * Główny przycisk akcji (zielony)
+ */
+@Composable
+fun PrimaryButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(Dimensions.buttonHeightLarge),
+        enabled = enabled,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = FitnessGreen,
+            contentColor = Color.Black,
+            disabledContainerColor = SurfaceDarkSecondary,
+            disabledContentColor = TextGray
+        ),
+        shape = RoundedCornerShape(Dimensions.inputFieldCornerRadius)
+    ) {
+        Text(
+            text = text,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+/**
+ * Karta informacyjna
+ */
+@Composable
+fun InfoCard(
+    title: String,
+    description: String,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = SurfaceDark),
+        shape = RoundedCornerShape(Dimensions.inputFieldCornerRadius)
+    ) {
+        Column(modifier = Modifier.padding(Dimensions.paddingLarge)) {
+            Text(
+                text = title,
+                style = FitnessTextStyles.cardTitle,
+                color = TextWhite
+            )
+            Spacer(modifier = Modifier.height(Dimensions.spacingSmall))
+            Text(
+                text = description,
+                style = FitnessTextStyles.cardSubtitle,
+                color = TextLightGray,
+                lineHeight = 18.sp
+            )
+        }
+    }
+}
+
+/**
+ * Pusty stan (empty state)
+ */
+@Composable
+fun EmptyState(
+    emoji: String,
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text = emoji, fontSize = 64.sp)
+            Spacer(modifier = Modifier.height(Dimensions.spacingLarge))
+            Text(
+                text = title,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextWhite
+            )
+            Text(
+                text = subtitle,
+                style = FitnessTextStyles.dateText,
+                color = TextGray
+            )
+        }
+    }
+}
+
+/**
+ * Wiersz ze statystyką (label - value)
+ */
+@Composable
+fun StatRow(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = Dimensions.spacingSmall),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = FitnessTextStyles.dateText,
+            color = TextLightGray
+        )
+        Text(
+            text = value,
+            style = FitnessTextStyles.dateText.copy(fontWeight = FontWeight.Bold),
+            color = TextWhite
+        )
     }
 }

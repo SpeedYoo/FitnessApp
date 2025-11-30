@@ -13,8 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.fitnessapp.ui.components.AnimatedProgressRing
-import com.example.fitnessapp.ui.components.NavigationButton
+import com.example.fitnessapp.ui.components.BottomNavigationBar
+import com.example.fitnessapp.ui.components.BottomNavTab
 import com.example.fitnessapp.ui.components.ProgressStatCard
 import com.example.fitnessapp.ui.components.SimpleStatCard
 import com.example.fitnessapp.ui.theme.*
@@ -50,97 +50,100 @@ fun SummaryScreen(
         }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(BackgroundBlack)
-            .verticalScroll(rememberScrollState())
-            .padding(Dimensions.paddingLarge)
-    ) {
-        // Nagłówek
-        SummaryHeader(
-            onNavigateToProfile = onNavigateToProfile
-        )
-
-        Spacer(modifier = Modifier.height(Dimensions.spacingXLarge))
-
-        // Karta Aktywności (Kalorie) - pełna szerokość z kółkiem
-        val caloriesProgress = if (uiState.caloriesGoal > 0) {
-            uiState.calories.toFloat() / uiState.caloriesGoal.toFloat()
-        } else 0f
-
-        ProgressStatCard(
-            title = "Aktywność",
-            subtitle = "Dzisiaj",
-            currentValue = FitnessUtils.formatNumber(uiState.calories),
-            goalValue = FitnessUtils.formatNumber(uiState.caloriesGoal),
-            unit = "kcal",
-            progress = caloriesProgress,
-            progressColors = listOf(FitnessRed, FitnessRedLight)
-        )
-
-        Spacer(modifier = Modifier.height(Dimensions.spacingLarge))
-
-        // Karta Kroków - pełna szerokość z kółkiem
-        val stepsProgress = if (uiState.stepsGoal > 0) {
-            uiState.steps.toFloat() / uiState.stepsGoal.toFloat()
-        } else 0f
-
-        ProgressStatCard(
-            title = "Ilość kroków",
-            subtitle = "Dzisiaj",
-            currentValue = FitnessUtils.formatNumber(uiState.steps),
-            goalValue = FitnessUtils.formatNumber(uiState.stepsGoal),
-            unit = "kroków",
-            progress = stepsProgress,
-            progressColors = listOf(FitnessPurple, FitnessPurpleLight)
-        )
-
-        Spacer(modifier = Modifier.height(Dimensions.spacingLarge))
-
-        // Rząd: Dystans, Treningi, W ruchu
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(Dimensions.spacingMedium)
-        ) {
-            SimpleStatCard(
-                title = "Dystans",
-                subtitle = "Dzisiaj",
-                value = uiState.distance,
-                valueColor = FitnessIndigo,
-                modifier = Modifier.weight(1f)
-            )
-
-            SimpleStatCard(
-                title = "Treningi",
-                subtitle = "Ten tydzień",
-                value = "$weeklyWorkouts",
-                valueColor = FitnessYellow,
-                modifier = Modifier.weight(1f),
-                onClick = onNavigateToHistory
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        containerColor = BackgroundBlack,
+        bottomBar = {
+            BottomNavigationBar(
+                selectedTab = BottomNavTab.SUMMARY,
+                onNavigateToSummary = { },
+                onNavigateToWorkout = onNavigateToWorkout
             )
         }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = Dimensions.paddingLarge)
+                .padding(top = Dimensions.paddingLarge)
+        ) {
+            // Nagłówek
+            SummaryHeader(
+                onNavigateToProfile = onNavigateToProfile
+            )
 
-        Spacer(modifier = Modifier.height(Dimensions.spacingMedium))
+            Spacer(modifier = Modifier.height(Dimensions.spacingXLarge))
 
-        // Karta W ruchu - pełna szerokość
-        SimpleStatCard(
-            title = "W ruchu",
-            subtitle = "Dzisiaj",
-            value = "${uiState.activeTimeMinutes} minut",
-            valueColor = FitnessGreen,
-            modifier = Modifier.fillMaxWidth()
-        )
+            // Karta Aktywności (Kalorie) - pełna szerokość z kółkiem
+            val caloriesProgress = if (uiState.caloriesGoal > 0) {
+                uiState.calories.toFloat() / uiState.caloriesGoal.toFloat()
+            } else 0f
 
-        Spacer(modifier = Modifier.weight(1f))
-        Spacer(modifier = Modifier.height(Dimensions.spacingLarge))
+            ProgressStatCard(
+                title = "Aktywność",
+                subtitle = "Dzisiaj",
+                currentValue = FitnessUtils.formatNumber(uiState.calories),
+                goalValue = FitnessUtils.formatNumber(uiState.caloriesGoal),
+                unit = "kcal",
+                progress = caloriesProgress,
+                progressColors = listOf(FitnessRed, FitnessRedLight)
+            )
 
-        // Dolna nawigacja
-        BottomNavigationBar(
-            onNavigateToWorkout = onNavigateToWorkout
-        )
+            Spacer(modifier = Modifier.height(Dimensions.spacingLarge))
 
-        Spacer(modifier = Modifier.height(Dimensions.spacingLarge))
+            // Karta Kroków - pełna szerokość z kółkiem
+            val stepsProgress = if (uiState.stepsGoal > 0) {
+                uiState.steps.toFloat() / uiState.stepsGoal.toFloat()
+            } else 0f
+
+            ProgressStatCard(
+                title = "Ilość kroków",
+                subtitle = "Dzisiaj",
+                currentValue = FitnessUtils.formatNumber(uiState.steps),
+                goalValue = FitnessUtils.formatNumber(uiState.stepsGoal),
+                unit = "kroków",
+                progress = stepsProgress,
+                progressColors = listOf(FitnessPurple, FitnessPurpleLight)
+            )
+
+            Spacer(modifier = Modifier.height(Dimensions.spacingLarge))
+
+            // Rząd: Dystans, Treningi
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Dimensions.spacingMedium)
+            ) {
+                SimpleStatCard(
+                    title = "Dystans",
+                    subtitle = "Dzisiaj",
+                    value = uiState.distance,
+                    valueColor = FitnessIndigo,
+                    modifier = Modifier.weight(1f)
+                )
+
+                SimpleStatCard(
+                    title = "Treningi",
+                    subtitle = "Ten tydzień",
+                    value = "$weeklyWorkouts",
+                    valueColor = FitnessYellow,
+                    modifier = Modifier.weight(1f),
+                    onClick = onNavigateToHistory
+                )
+            }
+
+            Spacer(modifier = Modifier.height(Dimensions.spacingMedium))
+
+            // Karta W ruchu - pełna szerokość
+            SimpleStatCard(
+                title = "W ruchu",
+                subtitle = "Dzisiaj",
+                value = "${uiState.activeTimeMinutes} minut",
+                valueColor = FitnessGreen,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 }
 
@@ -180,31 +183,6 @@ private fun SummaryHeader(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun BottomNavigationBar(
-    onNavigateToWorkout: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        NavigationButton(
-            text = "Statystyki",
-            isSelected = true,
-            onClick = { }
-        )
-
-        Spacer(modifier = Modifier.width(Dimensions.spacingMedium))
-
-        NavigationButton(
-            text = "Treningi",
-            isSelected = false,
-            onClick = onNavigateToWorkout
-        )
     }
 }
 

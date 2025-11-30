@@ -57,6 +57,11 @@ val CaloriesGradientEnd = Color(0xFFFF6B6B)
 val StepsGradientStart = Color(0xFFBF5AF2)
 val StepsGradientEnd = Color(0xFFE040FB)
 
+
+val WorkoutCardGreen = Color(0xFF2D4A1F)
+val WorkoutCardGreenDark = Color(0xff101800)
+val WorkoutAccentLime = Color(0xFFB4FF00)
+
 // ============================================
 // Legacy kolory (Material Design defaults)
 // ============================================

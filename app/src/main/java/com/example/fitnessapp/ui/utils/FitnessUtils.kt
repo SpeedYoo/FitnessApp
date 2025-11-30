@@ -135,4 +135,62 @@ object FitnessUtils {
 
         return today == timestampDate
     }
+
+    /**
+     * Formatuje datę z opcją "Dzisiaj"
+     */
+    fun formatDateWithToday(timestamp: Long): String {
+        val calendar = Calendar.getInstance()
+        calendar.timeInMillis = timestamp
+
+        return if (isToday(timestamp)) {
+            String.format(
+                "Dzisiaj, %02d:%02d",
+                calendar.get(Calendar.HOUR_OF_DAY),
+                calendar.get(Calendar.MINUTE)
+            )
+        } else {
+            formatDetailedDate(timestamp)
+        }
+    }
+
+    /**
+     * Formatuje czas trwania z sekund na "HH:MM:SS" lub "MM:SS"
+     */
+    fun formatDurationFromSeconds(seconds: Long): String {
+        val hours = seconds / 3600
+        val minutes = (seconds % 3600) / 60
+        val secs = seconds % 60
+        return if (hours > 0) {
+            String.format("%d:%02d:%02d", hours, minutes, secs)
+        } else {
+            String.format("%02d:%02d", minutes, secs)
+        }
+    }
+
+    /**
+     * Formatuje czas trwania z minut na "Xh XXm" lub "X min"
+     */
+    fun formatDurationFromMinutes(minutes: Long): String {
+        val hours = minutes / 60
+        val mins = minutes % 60
+        return if (hours > 0) {
+            String.format("%dh %02dm", hours, mins)
+        } else {
+            String.format("%d min", mins)
+        }
+    }
+
+    /**
+     * Zwraca emoji dla typu treningu
+     */
+    fun getWorkoutEmoji(type: String): String {
+        return when (type.lowercase()) {
+            "spacer", "outdoor walk", "walk" -> "🚶"
+            "bieganie", "running", "run" -> "🏃"
+            "jazda na rowerze", "cycling", "bike" -> "🚴"
+            "chodzenie po górach", "hiking", "hike" -> "⛰️"
+            else -> "🏃"
+        }
+    }
 }

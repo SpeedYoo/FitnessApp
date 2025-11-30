@@ -145,7 +145,6 @@ class StepCounterService : Service(), SensorEventListener {
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
-        // Nie potrzebujemy tej metody
     }
 
     private fun createNotification(steps: Int): Notification {

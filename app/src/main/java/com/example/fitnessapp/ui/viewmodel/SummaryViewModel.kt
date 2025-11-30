@@ -63,35 +63,6 @@ class SummaryViewModel(
     }
 
     // Wywoływane przez StepCounterService gdy wykryje nowe kroki
-    fun onStepsUpdated(newSteps: Int) {
-        viewModelScope.launch {
-            val profile = repository.userProfile.value
-
-            // Oblicz dystans
-            val distance = calculateDistance.execute(
-                newSteps,
-                profile.height,
-                profile.gender
-            )
-
-            // Oblicz czas aktywności
-            val activeTime = calculateActiveTime.execute(newSteps)
-
-            // Oblicz kalorie
-            val calories = calculateCalories.execute(
-                newSteps,
-                distance,
-                activeTime,
-                profile
-            )
-
-            // Zaktualizuj repository
-            repository.updateSteps(newSteps)
-            repository.updateDistance(distance)
-            repository.updateCalories(calories)
-            repository.updateActiveTime(activeTime)
-        }
-    }
 
     @SuppressLint("DefaultLocale")
     private fun formatDistance(distanceKm: Float): String {

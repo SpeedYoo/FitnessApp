@@ -3,6 +3,7 @@ package com.example.fitnessapp.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -18,12 +19,28 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.fitnessapp.ui.components.BottomNavigationBar
+import com.example.fitnessapp.ui.components.BottomNavTab
+import com.example.fitnessapp.ui.theme.*
 
+/**
+ * Model danych dla treningu
+ */
 data class Workout(
     val id: Int,
     val name: String,
     val icon: String,
-    val backgroundColor: Color
+    val backgroundColor: Color = WorkoutCardGreenDark
+)
+
+/**
+ * Lista dostępnych treningów
+ */
+val availableWorkouts = listOf(
+    Workout(1, "Spacer", "🚶"),
+    Workout(2, "Bieganie", "🏃"),
+    Workout(3, "Jazda na rowerze", "🚴"),
+    Workout(4, "Chodzenie po górach", "⛰️")
 )
 
 @Composable
@@ -42,17 +59,10 @@ fun WorkoutScreen(
         )
     }
 
-    val workouts = listOf(
-        Workout(1, "Spacer", "🚶", Color(0xFF2D4A1F)),
-        Workout(2, "Bieganie", "🏃", Color(0xFF2D4A1F)),
-        Workout(3, "Jazda na rowerze", "🚴", Color(0xFF2D4A1F)),
-        Workout(4, "Chodzenie po górach", "⛰️", Color(0xFF2D4A1F))
-    )
-
     val filteredWorkouts = if (showOnlyFavorites) {
-        workouts.filter { favoriteWorkouts.contains(it.name) }
+        availableWorkouts.filter { favoriteWorkouts.contains(it.name) }
     } else {
-        workouts
+        availableWorkouts
     }
 
     val toggleFavorite: (String) -> Unit = { workoutName ->
@@ -66,91 +76,74 @@ fun WorkoutScreen(
         prefs.edit().putStringSet("favorite_workouts", newFavorites).apply()
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color(0xFF000000))
-            .padding(16.dp)
-    ) {
-        // Nagłówek
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        containerColor = BackgroundBlack,
+        bottomBar = {
+            BottomNavigationBar(
+                selectedTab = BottomNavTab.WORKOUT,
+                onNavigateToSummary = onNavigateToSummary,
+                onNavigateToWorkout = { }
+            )
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(horizontal = Dimensions.paddingLarge)
+                .padding(top = Dimensions.paddingLarge)
         ) {
-            Text(
-                text = "Workout",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
+            // Nagłówek
+            WorkoutScreenHeader(
+                showOnlyFavorites = showOnlyFavorites,
+                onToggleFavorites = { showOnlyFavorites = !showOnlyFavorites }
             )
 
-            IconButton(
-                onClick = { showOnlyFavorites = !showOnlyFavorites }
+            Spacer(modifier = Modifier.height(Dimensions.spacingLarge))
+
+            // Lista treningów
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(Dimensions.spacingMedium),
+                modifier = Modifier.fillMaxSize()
             ) {
-                Icon(
-                    imageVector = if (showOnlyFavorites) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = if (showOnlyFavorites) "Pokaż wszystkie" else "Pokaż ulubione",
-                    tint = if (showOnlyFavorites) Color(0xFFFF3B30) else Color.White,
-                    modifier = Modifier.size(28.dp)
-                )
+                items(filteredWorkouts) { workout ->
+                    WorkoutCard(
+                        workout = workout,
+                        isFavorite = favoriteWorkouts.contains(workout.name),
+                        onStartWorkout = onStartWorkout,
+                        onToggleFavorite = toggleFavorite
+                    )
+                }
             }
         }
+    }
+}
 
-        Spacer(modifier = Modifier.height(16.dp))
+@Composable
+private fun WorkoutScreenHeader(
+    showOnlyFavorites: Boolean,
+    onToggleFavorites: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "Workout",
+            style = FitnessTextStyles.screenTitle,
+            color = TextWhite
+        )
 
-        // Lista treningów
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.weight(1f)
-        ) {
-            items(filteredWorkouts.size) { index ->
-                val workout = filteredWorkouts[index]
-                WorkoutCard(
-                    workout = workout,
-                    isFavorite = favoriteWorkouts.contains(workout.name),
-                    onStartWorkout = onStartWorkout,
-                    onToggleFavorite = toggleFavorite
-                )
-            }
+        IconButton(onClick = onToggleFavorites) {
+            Icon(
+                imageVector = if (showOnlyFavorites) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                contentDescription = if (showOnlyFavorites) "Pokaż wszystkie" else "Pokaż ulubione",
+                tint = if (showOnlyFavorites) FitnessRed else TextWhite,
+                modifier = Modifier.size(Dimensions.iconSizeLarge)
+            )
         }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Dolne przyciski nawigacji
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Button(
-                onClick = onNavigateToSummary,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF2C2C2E),
-                    contentColor = Color.White
-                ),
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.height(44.dp)
-            ) {
-                Text("Statystyki")
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Button(
-                onClick = { },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Transparent,
-                    contentColor = Color(0xFF32D74B)
-                ),
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.height(44.dp)
-            ) {
-                Text("Treningi")
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -164,124 +157,82 @@ fun WorkoutCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(160.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = workout.backgroundColor
-        ),
-        shape = RoundedCornerShape(20.dp)
+            .height(Dimensions.workoutCardHeight),
+        colors = CardDefaults.cardColors(containerColor = workout.backgroundColor),
+        shape = RoundedCornerShape(Dimensions.cornerRadiusLarge)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(20.dp)
+                .padding(Dimensions.paddingXLarge)
         ) {
-            // Ikona i nazwa treningu
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Ikona treningu
-                Surface(
-                    modifier = Modifier.size(50.dp),
-                    color = Color.Transparent,
-                    shape = CircleShape
-                ) {
-                    Box(
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = workout.icon,
-                            fontSize = 32.sp
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Text(
-                    text = workout.name,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }
+            // Ikona treningu (góra-lewo)
+            Text(
+                text = workout.icon,
+                fontSize = 40.sp,
+                modifier = Modifier.align(Alignment.TopStart)
+            )
 
             // Przycisk play (góra-prawo)
-            IconButton(
+            PlayButton(
                 onClick = { onStartWorkout(workout.name) },
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .size(50.dp)
-                    .background(Color(0xFFB4FF00), CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Start ${workout.name}",
-                    tint = Color.Black,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
+                modifier = Modifier.align(Alignment.TopEnd)
+            )
+
+            // Nazwa treningu (dół-lewo)
+            Text(
+                text = workout.name,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextWhite,
+                modifier = Modifier.align(Alignment.BottomStart)
+            )
 
             // Ikona serca (prawo-dół)
-            IconButton(
+            FavoriteButton(
+                isFavorite = isFavorite,
                 onClick = { onToggleFavorite(workout.name) },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(40.dp)
-            ) {
-                Icon(
-                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = "Toggle favorite",
-                    tint = if (isFavorite) Color(0xFFFF3B30) else Color.White.copy(alpha = 0.6f),
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-
-            // Dolne przyciski (lewy dół)
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomStart),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Przycisk timer/history
-                Surface(
-                    modifier = Modifier.size(40.dp),
-                    color = Color(0xFF1C3A14),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(text = "⏱️", fontSize = 20.sp)
-                    }
-                }
-
-                // Przycisk start workout
-                Surface(
-                    modifier = Modifier
-                        .height(40.dp)
-                        .widthIn(min = 100.dp),
-                    color = Color(0xFF1C3A14),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Row(
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "⏱",
-                                fontSize = 18.sp,
-                                color = Color.White
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Start",
-                                fontSize = 14.sp,
-                                color = Color.White,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-                }
-            }
+                modifier = Modifier.align(Alignment.BottomEnd)
+            )
         }
+    }
+}
+
+@Composable
+private fun PlayButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = modifier
+            .size(50.dp)
+            .background(WorkoutAccentLime, CircleShape)
+    ) {
+        Icon(
+            imageVector = Icons.Default.PlayArrow,
+            contentDescription = "Start",
+            tint = Color.Black,
+            modifier = Modifier.size(Dimensions.iconSizeLarge)
+        )
+    }
+}
+
+@Composable
+private fun FavoriteButton(
+    isFavorite: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = modifier.size(Dimensions.avatarSizeMedium)
+    ) {
+        Icon(
+            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+            contentDescription = "Toggle favorite",
+            tint = if (isFavorite) FitnessRed else TextWhite.copy(alpha = 0.6f),
+            modifier = Modifier.size(Dimensions.iconSizeMedium)
+        )
     }
 }

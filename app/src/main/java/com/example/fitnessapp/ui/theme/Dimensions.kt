@@ -47,10 +47,23 @@ object Dimensions {
 
     // Przyciski
     val buttonHeight = 44.dp
+    val buttonHeightLarge = 56.dp
     val buttonCornerRadius = 20.dp
 
     // Avatar / ikony profilu
     val avatarSizeSmall = 32.dp
     val avatarSizeMedium = 40.dp
     val avatarSizeLarge = 56.dp
+    val avatarSizeXLarge = 100.dp
+
+    // Pola tekstowe
+    val inputFieldCornerRadius = 12.dp
+
+    // Timer / duże elementy
+    val timerSize = 200.dp
+
+    // Workout stat cards
+    val workoutStatCardSize = 100.dp
+    val workoutCardHeight = 160.dp
+    val workoutHistoryCardHeight = 120.dp
 }
