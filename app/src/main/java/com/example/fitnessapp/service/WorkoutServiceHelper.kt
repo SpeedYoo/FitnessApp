@@ -76,10 +76,9 @@ object WorkoutServiceHelper {
         duration: String = "00:00",
         distance: String = "0.00 km"
     ): Notification {
-        // Intent do otwarcia aplikacji na ekranie aktywnego treningu
         val openAppIntent = Intent(context, MainActivity::class.java).apply {
-            Intent.setAction = MainActivity.ACTION_OPEN_ACTIVE_WORKOUT
-            Intent.setFlags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            action = MainActivity.ACTION_OPEN_ACTIVE_WORKOUT
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
 
         val pendingIntent = PendingIntent.getActivity(

@@ -18,9 +18,10 @@ import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
+import androidx.core.content.edit
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.example.fitnessapp.MainActivity
 import com.google.android.gms.location.*
-import androidx.core.content.edit
 import com.google.gson.Gson
 import java.util.Timer
 import java.util.TimerTask
@@ -74,8 +75,7 @@ class WorkoutTrackingService : Service() {
                 return
             }
 
-            val intent = Intent(context, WorkoutTrackingService::class.java).apply {
-                Intent.setAction = ACTION_START
+            val intent = Intent(context, WorkoutTrackingService::class.java).apply {action = ACTION_START
                 putExtra(EXTRA_WORKOUT_TYPE, workoutType)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -96,21 +96,21 @@ class WorkoutTrackingService : Service() {
 
         fun pauseWorkout(context: Context) {
             val intent = Intent(context, WorkoutTrackingService::class.java).apply {
-                Intent.setAction = ACTION_PAUSE
+                action = ACTION_PAUSE
             }
             context.startService(intent)
         }
 
         fun resumeWorkout(context: Context) {
             val intent = Intent(context, WorkoutTrackingService::class.java).apply {
-                Intent.setAction = ACTION_RESUME
+                action = ACTION_RESUME
             }
             context.startService(intent)
         }
 
         fun stopWorkout(context: Context) {
             val intent = Intent(context, WorkoutTrackingService::class.java).apply {
-                Intent.setAction = ACTION_STOP
+                action = ACTION_STOP
             }
             context.startService(intent)
         }
@@ -309,14 +309,14 @@ class WorkoutTrackingService : Service() {
             putExtra(EXTRA_DISTANCE, totalDistance / 1000)
             putExtra(EXTRA_CALORIES, getCalories())
         }
-        sendBroadcast(intent)
+        LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
     }
 
     @SuppressLint("DefaultLocale")
     private fun createNotification(durationSeconds: Long, distanceKm: Float): Notification {
         val notificationIntent = Intent(this, MainActivity::class.java).apply {
-            Intent.setAction = "OPEN_ACTIVE_WORKOUT"
-            Intent.setFlags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            action = "OPEN_ACTIVE_WORKOUT"
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val pendingIntent = PendingIntent.getActivity(
             this,

@@ -4,7 +4,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -20,7 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.example.fitnessapp.service.WorkoutTrackingService
 import com.example.fitnessapp.ui.components.WorkoutStatCard
 import com.example.fitnessapp.ui.theme.*
@@ -50,19 +49,10 @@ fun ActiveWorkoutScreen(
         }
 
         val filter = IntentFilter(WorkoutTrackingService.ACTION_WORKOUT_UPDATE)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            ContextCompat.registerReceiver(
-                context,
-                receiver,
-                filter,
-                ContextCompat.RECEIVER_NOT_EXPORTED
-            )
-        }
+        LocalBroadcastManager.getInstance(context).registerReceiver(receiver, filter)
 
         onDispose {
-            context.unregisterReceiver(receiver)
+            LocalBroadcastManager.getInstance(context).unregisterReceiver(receiver)
         }
     }
 
